@@ -1,0 +1,387 @@
+/* =============================================
+   SG Créations — Portfolio Page
+   ============================================= */
+
+/* === Reset & Base === */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: 'Nunito', sans-serif;
+    background: #FFF8F2;
+    color: #2D3748;
+    min-height: 100vh;
+    line-height: 1.6;
+}
+
+/* =============================================
+   HERO
+   ============================================= */
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(135deg, #FF6B6B 0%, #FF9A3C 40%, #FFD93D 75%, #6BCB77 100%);
+    padding: 90px 24px 110px;
+    text-align: center;
+    color: white;
+}
+
+/* Decorative floating shapes */
+.hero-shapes .shape {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.15);
+    pointer-events: none;
+}
+
+.shape-1 { width: 340px; height: 340px; top: -120px; left: -100px; }
+.shape-2 { width: 220px; height: 220px; bottom: -70px; right: 3%; }
+.shape-3 { width: 140px; height: 140px; top: 30%; right: 18%; opacity: 0.1; }
+.shape-4 { width: 80px;  height: 80px;  top: 15%;  left: 20%;  opacity: 0.2; }
+
+.hero-content {
+    position: relative;
+    z-index: 1;
+    max-width: 680px;
+    margin: 0 auto;
+}
+
+.brand-badge {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.22);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    padding: 8px 22px;
+    border-radius: 50px;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.4px;
+    margin-bottom: 28px;
+}
+
+.hero-content h1 {
+    font-size: clamp(2rem, 5vw, 3.6rem);
+    font-weight: 900;
+    line-height: 1.15;
+    margin-bottom: 18px;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.12);
+}
+
+.hero-highlight {
+    color: #FFF9C4;
+    display: inline-block;
+}
+
+.hero-sub {
+    font-size: 1.15rem;
+    font-weight: 600;
+    opacity: 0.9;
+    max-width: 480px;
+    margin: 0 auto 36px;
+}
+
+.hero-cta {
+    display: inline-block;
+    background: rgba(255, 255, 255, 0.25);
+    backdrop-filter: blur(8px);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    color: white;
+    text-decoration: none;
+    padding: 12px 30px;
+    border-radius: 50px;
+    font-weight: 800;
+    font-size: 0.95rem;
+    transition: background 0.3s ease, transform 0.3s ease;
+}
+
+.hero-cta:hover {
+    background: rgba(255, 255, 255, 0.38);
+    transform: translateY(3px);
+}
+
+/* =============================================
+   APPS SECTION
+   ============================================= */
+
+.apps-section {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 72px 24px 90px;
+}
+
+.section-header {
+    text-align: center;
+    margin-bottom: 56px;
+}
+
+.section-header h2 {
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    font-weight: 900;
+    color: #1A202C;
+    margin-bottom: 10px;
+}
+
+.section-header p {
+    color: #718096;
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+/* === Grid === */
+
+.apps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 28px;
+    align-items: start;
+}
+
+@media (min-width: 1024px) {
+    .apps-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+/* =============================================
+   APP CARDS — base
+   ============================================= */
+
+.app-card {
+    background: white;
+    border-radius: 24px;
+    padding: 32px 30px;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.07);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.app-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.13);
+}
+
+/* Coloured top bar */
+.recipe-card::before,
+.journal-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 6px;
+}
+
+.recipe-card::before  { background: linear-gradient(90deg, #FF6B6B, #FF8E53); }
+.journal-card::before { background: linear-gradient(90deg, #43C6AC, #3B82F6); }
+
+/* === Card header === */
+
+.card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.card-emoji {
+    font-size: 3rem;
+    line-height: 1;
+}
+
+.card-tag {
+    font-size: 0.75rem;
+    font-weight: 800;
+    padding: 6px 14px;
+    border-radius: 50px;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.recipe-card  .card-tag { background: #FFF0EE; color: #E55A4E; }
+.journal-card .card-tag { background: #EAF9F6; color: #2DA090; }
+
+/* === Card body === */
+
+.app-card h3 {
+    font-size: 1.45rem;
+    font-weight: 900;
+    color: #1A202C;
+    margin-bottom: 10px;
+}
+
+.card-desc {
+    color: #718096;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    margin-bottom: 22px;
+}
+
+.card-features {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 9px;
+    margin-bottom: 30px;
+}
+
+.card-features li {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #4A5568;
+}
+
+/* === Buttons === */
+
+.card-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    width: 100%;
+    padding: 14px 20px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-family: 'Nunito', sans-serif;
+    font-weight: 800;
+    font-size: 0.95rem;
+    color: white;
+    transition: box-shadow 0.3s ease, transform 0.2s ease;
+}
+
+.recipe-btn {
+    background: linear-gradient(135deg, #FF6B6B, #FF8E53);
+    box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
+}
+.recipe-btn:hover {
+    box-shadow: 0 8px 28px rgba(255, 107, 107, 0.55);
+    transform: scale(1.02);
+}
+
+.journal-btn {
+    background: linear-gradient(135deg, #43C6AC, #3B82F6);
+    box-shadow: 0 4px 16px rgba(67, 198, 172, 0.4);
+}
+.journal-btn:hover {
+    box-shadow: 0 8px 28px rgba(67, 198, 172, 0.55);
+    transform: scale(1.02);
+}
+
+.btn-arrow {
+    font-size: 1.1rem;
+    transition: transform 0.25s ease;
+}
+.card-btn:hover .btn-arrow {
+    transform: translateX(5px);
+}
+
+/* =============================================
+   COMING SOON CARD
+   ============================================= */
+
+.soon-card {
+    text-align: center;
+    background: linear-gradient(145deg, #F5F0FF, #EEF2FF);
+    border: 2px dashed #C4B5FD;
+    box-shadow: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 300px;
+}
+
+.soon-card:hover {
+    box-shadow: 0 12px 40px rgba(167, 139, 250, 0.22);
+}
+
+.soon-icon {
+    font-size: 3.5rem;
+    margin-bottom: 20px;
+    animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-12px); }
+}
+
+.soon-card h3 {
+    font-size: 1.45rem;
+    font-weight: 900;
+    color: #5B21B6;
+    margin-bottom: 12px;
+}
+
+.soon-card p {
+    color: #7C3AED;
+    opacity: 0.75;
+    font-size: 0.95rem;
+    line-height: 1.7;
+    max-width: 240px;
+    margin-bottom: 28px;
+}
+
+.soon-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.soon-dots span {
+    width: 10px;
+    height: 10px;
+    background: #A855F7;
+    border-radius: 50%;
+    animation: blink 1.5s ease-in-out infinite;
+}
+.soon-dots span:nth-child(2) { animation-delay: 0.25s; }
+.soon-dots span:nth-child(3) { animation-delay: 0.50s; }
+
+@keyframes blink {
+    0%, 100% { opacity: 0.25; transform: scale(1);   }
+    50%       { opacity: 1;    transform: scale(1.35); }
+}
+
+/* =============================================
+   FOOTER
+   ============================================= */
+
+.footer {
+    background: #1A202C;
+    color: white;
+    text-align: center;
+    padding: 44px 24px;
+}
+
+.footer-brand {
+    font-size: 1.25rem;
+    font-weight: 900;
+    margin-bottom: 8px;
+}
+
+.footer-tagline {
+    opacity: 0.75;
+    font-weight: 600;
+    margin-bottom: 10px;
+}
+
+.footer-copy {
+    opacity: 0.4;
+    font-size: 0.82rem;
+}
+
+/* =============================================
+   RESPONSIVE
+   ============================================= */
+
+@media (max-width: 640px) {
+    .hero { padding: 70px 20px 90px; }
+    .apps-section { padding: 52px 18px 70px; }
+    .apps-grid { grid-template-columns: 1fr; }
+}
