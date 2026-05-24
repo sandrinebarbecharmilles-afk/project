@@ -184,16 +184,16 @@ body {
     height: 88px;
 }
 
-/* Image réelle pour la section Journal */
-.journal-img-wrap {
+/* Images des applications */
+.feature-img-wrap {
     flex-shrink: 0;
     width: 300px;
 }
 
-.journal-img {
+.feature-img {
     width: 100%;
     border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(90, 60, 40, 0.22);
+    box-shadow: 0 20px 60px rgba(90, 60, 40, 0.2);
     display: block;
 }
 
