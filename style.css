@@ -148,6 +148,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    overflow: hidden;
     animation: morph 8s ease-in-out infinite;
     transition: box-shadow 0.35s ease;
 }
@@ -184,17 +185,12 @@ body {
     height: 88px;
 }
 
-/* Images des applications */
-.feature-img-wrap {
-    flex-shrink: 0;
-    width: 300px;
-}
-
-.feature-img {
-    width: 100%;
-    border-radius: 20px;
-    box-shadow: 0 20px 60px rgba(90, 60, 40, 0.2);
-    display: block;
+/* Image dans le blob — fond blanc rendu transparent par multiply */
+.blob-img {
+    width: 88%;
+    height: 88%;
+    object-fit: contain;
+    mix-blend-mode: multiply;
 }
 
 /* =============================================
