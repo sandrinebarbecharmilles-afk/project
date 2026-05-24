@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="SG Créations — Des applications simples, belles et intuitives pensées pour votre quotidien.">
+    <meta name="description" content="SG Créations — Des applications pensées pour vous.">
     <title>SG Créations — Des applications pensées pour vous</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -17,73 +17,78 @@
         <div class="hero-glow hero-glow-1" aria-hidden="true"></div>
         <div class="hero-glow hero-glow-2" aria-hidden="true"></div>
         <div class="hero-content">
-            <p class="brand-badge">SG Créations</p>
+            <p class="brand-label">SG Créations</p>
             <h1>Des applications<br><em>pensées pour vous</em></h1>
             <p class="hero-sub">Des outils simples et intuitifs pour votre quotidien</p>
             <a href="#applications" class="hero-cta">Découvrir ↓</a>
         </div>
     </header>
 
-    <!-- ===== APPS ===== -->
-    <main>
-        <section class="apps-section" id="applications">
+    <!-- ===== APPLICATIONS ===== -->
+    <main id="applications">
 
-            <div class="apps-grid">
-
-                <!-- Recettes -->
-                <article class="app-card recipe-card">
-                    <div class="card-visual">
-                        <div class="card-icon-ring">🍽️</div>
-                        <span class="card-tag">Cuisine</span>
+        <!-- Recettes -->
+        <section class="feature recipe-feature">
+            <div class="feature-inner">
+                <div class="blob-wrap">
+                    <div class="blob recipe-blob">
+                        <span class="blob-emoji" role="img" aria-label="Recettes">🍽️</span>
                     </div>
-                    <div class="card-body">
-                        <h3>Mes Recettes</h3>
-                        <p class="card-desc">Créez, organisez et retrouvez toutes vos recettes au même endroit. Plus jamais de recette perdue !</p>
-                        <ul class="card-features">
-                            <li>Créez et personnalisez vos recettes</li>
-                            <li>Recherche rapide par ingrédient</li>
-                            <li>Organisation par catégories</li>
-                        </ul>
-                        <a href="https://sgcréations.fr" target="_blank" rel="noopener noreferrer" class="card-btn">
-                            Ouvrir l'application <span class="btn-arrow">→</span>
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Cahier Journal -->
-                <article class="app-card journal-card">
-                    <div class="card-visual">
-                        <div class="card-icon-ring">📓</div>
-                        <span class="card-tag">Enseignants</span>
-                    </div>
-                    <div class="card-body">
-                        <h3>Cahier Journal</h3>
-                        <p class="card-desc">Planifiez vos séances, suivez vos élèves et organisez votre année scolaire sereinement.</p>
-                        <ul class="card-features">
-                            <li>Planification des séances</li>
-                            <li>Suivi pédagogique</li>
-                            <li>Vue calendrier de l'année</li>
-                        </ul>
-                        <a href="https://journal.sgcréations.fr" target="_blank" rel="noopener noreferrer" class="card-btn">
-                            Ouvrir l'application <span class="btn-arrow">→</span>
-                        </a>
-                    </div>
-                </article>
-
-                <!-- Bientôt -->
-                <article class="app-card soon-card">
-                    <div class="soon-inner">
-                        <div class="soon-icon" aria-hidden="true">✦</div>
-                        <h3>À venir</h3>
-                        <p>De nouvelles applications rejoindront bientôt SG Créations.</p>
-                        <div class="soon-dots" aria-hidden="true">
-                            <span></span><span></span><span></span>
-                        </div>
-                    </div>
-                </article>
-
+                </div>
+                <div class="feature-content">
+                    <span class="feature-cat">Cuisine</span>
+                    <h2>Mes Recettes</h2>
+                    <p>Créez, organisez et retrouvez toutes vos recettes au même endroit. Plus jamais de recette égarée !</p>
+                    <ul class="feature-list">
+                        <li>Créez et personnalisez vos recettes</li>
+                        <li>Recherche rapide par ingrédient</li>
+                        <li>Organisation par catégories</li>
+                    </ul>
+                    <a href="https://sgcréations.fr" target="_blank" rel="noopener noreferrer" class="feature-btn recipe-btn">
+                        Ouvrir l'application <span>→</span>
+                    </a>
+                </div>
             </div>
         </section>
+
+        <!-- Trait séparateur -->
+        <div class="divider" aria-hidden="true"><span>✦</span></div>
+
+        <!-- Cahier Journal -->
+        <section class="feature journal-feature">
+            <div class="feature-inner reverse">
+                <div class="blob-wrap">
+                    <div class="blob journal-blob">
+                        <span class="blob-emoji" role="img" aria-label="Journal">📓</span>
+                    </div>
+                </div>
+                <div class="feature-content">
+                    <span class="feature-cat">Enseignants</span>
+                    <h2>Cahier Journal</h2>
+                    <p>Planifiez vos séances, suivez vos élèves et organisez votre année scolaire en toute sérénité.</p>
+                    <ul class="feature-list">
+                        <li>Planification des séances</li>
+                        <li>Suivi pédagogique</li>
+                        <li>Vue calendrier de l'année</li>
+                    </ul>
+                    <a href="https://journal.sgcréations.fr" target="_blank" rel="noopener noreferrer" class="feature-btn journal-btn">
+                        Ouvrir l'application <span>→</span>
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- Trait séparateur -->
+        <div class="divider" aria-hidden="true"><span>✦</span></div>
+
+        <!-- Bientôt -->
+        <section class="teaser">
+            <div class="teaser-blob" aria-hidden="true"></div>
+            <p class="teaser-label">Bientôt</p>
+            <h2>D'autres applications<br><em>arrivent…</em></h2>
+            <p class="teaser-sub">SG Créations continue de grandir. Revenez découvrir les prochains outils.</p>
+        </section>
+
     </main>
 
     <!-- ===== FOOTER ===== -->
