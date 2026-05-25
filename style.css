@@ -299,6 +299,19 @@ body {
 }
 .library-btn:hover { box-shadow: 0 10px 28px rgba(94, 138, 118, 0.42); }
 
+.ecole-blob {
+    background: linear-gradient(145deg, #C8DCE8, #8BBAD0);
+    box-shadow: 0 20px 60px rgba(59, 110, 138, 0.28);
+}
+
+.ecole-feature .feature-list li::before { background: #3B6E8A; }
+
+.ecole-btn {
+    background: #3B6E8A;
+    box-shadow: 0 6px 20px rgba(59, 110, 138, 0.35);
+}
+.ecole-btn:hover { box-shadow: 0 10px 28px rgba(59, 110, 138, 0.48); }
+
 .feature-btn span {
     font-size: 1.1rem;
     transition: transform 0.2s ease;
