@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bibliothèque École — SG Créations</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ── LOGIN OVERLAY ──────────────────────────────────────── -->
+  <div id="loginOverlay" class="login-overlay hidden">
+    <div class="login-panel">
+      <h1 style="font-family:'Playfair Display',serif;font-size:1.4rem;font-weight:600;margin:0">Bibliothèque École</h1>
+      <p style="color:#6B5249;font-size:0.9rem;margin:0">Connectez-vous pour accéder à la bibliothèque scolaire.</p>
+      <a href="/api/auth/google" class="google-signin-button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
+          <path fill="#4285F4" d="M44.5 20H24v8.5h11.7C34.2 33.6 29.7 37 24 37c-7.2 0-13-5.8-13-13s5.8-13 13-13c3.1 0 5.9 1.1 8.1 2.9l6.1-6.1C34.5 5.1 29.6 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21c10.9 0 20.4-7.9 20.4-21 0-1.4-.1-2.7-.4-4z"/>
+          <path fill="#34A853" d="M6.3 14.7l7 5.1C15.1 16.1 19.2 13 24 13c3.1 0 5.9 1.1 8.1 2.9l6.1-6.1C34.5 5.1 29.6 3 24 3 16.4 3 9.9 7.9 6.3 14.7z"/>
+          <path fill="#FBBC05" d="M24 45c5.6 0 10.4-1.9 14.1-5l-6.5-5.3C29.7 36.3 27 37 24 37c-5.6 0-10.4-3.3-12.7-8.1l-7 5.4C8.1 41.3 15.5 45 24 45z"/>
+          <path fill="#EA4335" d="M44.5 20H24v8.5h11.7c-1.1 3-3.2 5.4-6.1 7l6.5 5.3C40.8 37.3 44.5 31.1 44.5 24c0-1.4-.1-2.7-.4-4z"/>
+        </svg>
+        Se connecter avec Google
+      </a>
+      <p id="loginError" class="danger-text" style="margin:0;font-size:0.85rem"></p>
+      <button id="togglePasswordLogin" class="login-toggle" type="button">Connexion par mot de passe (admin)</button>
+      <button id="openCgu" class="login-toggle" type="button" style="font-size:0.75rem;opacity:0.6">Politique de confidentialité &amp; CGU</button>
+      <form id="loginForm" class="password-login-form hidden">
+        <label style="display:grid;gap:5px;font-size:0.8rem;font-weight:600;color:#6B5249">
+          Nom d'utilisateur
+          <input id="usernameInput" type="text" autocomplete="username" required style="padding:9px 12px;border:1.5px solid #E8DDD8;border-radius:8px;font-family:inherit;font-size:0.9rem">
+        </label>
+        <label style="display:grid;gap:5px;font-size:0.8rem;font-weight:600;color:#6B5249">
+          Mot de passe
+          <input id="passwordInput" type="password" autocomplete="current-password" required style="padding:9px 12px;border:1.5px solid #E8DDD8;border-radius:8px;font-family:inherit;font-size:0.9rem">
+        </label>
+        <button type="submit" class="btn-primary">Se connecter</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── CONSENT OVERLAY ────────────────────────────────────── -->
+  <div id="consentOverlay" class="login-overlay hidden" role="dialog" aria-modal="true">
+    <div class="login-panel cgu-panel">
+      <h2 style="margin:0;font-size:1.15rem;font-weight:700">Avant de continuer</h2>
+      <p style="margin:0;font-size:0.88rem;color:#6B5249">Pour utiliser la Bibliothèque École, lisez et acceptez notre politique de confidentialité.</p>
+      <div class="cgu-body">
+        <h3>Ce que nous collectons</h3>
+        <ul>
+          <li>Votre identifiant de connexion (e-mail Google ou nom d'utilisateur)</li>
+          <li>Les données saisies : catalogue de livres, prêts, liste d'élèves</li>
+          <li>Date de connexion</li>
+        </ul>
+        <h3>Comment nous les utilisons</h3>
+        <p>Uniquement pour faire fonctionner l'application et partager le catalogue entre enseignants. Aucun partage avec des tiers.</p>
+        <h3>Vos droits</h3>
+        <p>Téléchargement et suppression de votre compte à tout moment depuis le menu utilisateur.</p>
+        <h3>Conservation</h3>
+        <p>Le catalogue est partagé entre tous les enseignants autorisés et conservé jusqu'à suppression manuelle.</p>
+      </div>
+      <label class="consent-checkbox-label">
+        <input type="checkbox" id="consentCheckbox">
+        J'ai lu et j'accepte la politique de confidentialité et les conditions d'utilisation.
+      </label>
+      <button id="consentAcceptButton" class="btn-primary" type="button" disabled>Accepter et continuer</button>
+    </div>
+  </div>
+
+  <!-- ── CGU OVERLAY ────────────────────────────────────────── -->
+  <div id="cguOverlay" class="login-overlay hidden" role="dialog" aria-modal="true">
+    <div class="login-panel cgu-panel">
+      <h2 style="margin:0;font-size:1.15rem;font-weight:700">Politique de confidentialité &amp; CGU</h2>
+      <div class="cgu-body">
+        <h3>Éditeur</h3>
+        <p>Bibliothèque École — outil de gestion de prêts scolaires, SG Créations.</p>
+        <h3>Données collectées</h3>
+        <ul>
+          <li>Identifiant de connexion (e-mail Google ou nom d'utilisateur)</li>
+          <li>Catalogue de livres, prêts en cours, liste d'élèves</li>
+          <li>Date de création du compte et dernière connexion</li>
+        </ul>
+        <h3>Finalité</h3>
+        <p>Données utilisées exclusivement pour le fonctionnement de l'application. Catalogue et liste d'élèves partagés entre enseignants autorisés. Aucune exploitation commerciale.</p>
+        <h3>Hébergement</h3>
+        <p>Cloudflare Inc. — infrastructure conforme RGPD. Aucun transfert à des tiers.</p>
+        <h3>Vos droits (RGPD)</h3>
+        <ul>
+          <li><strong>Portabilité</strong> : menu utilisateur → Télécharger mes données</li>
+          <li><strong>Suppression</strong> : menu utilisateur → Supprimer mon compte</li>
+          <li><strong>Rectification</strong> : données modifiables directement dans l'application</li>
+        </ul>
+      </div>
+      <button id="closeCgu" class="btn-primary" type="button">Fermer</button>
+    </div>
+  </div>
+
+  <!-- ── APP CONTAINER ──────────────────────────────────────── -->
+  <div id="appContainer" class="hidden">
+
+    <header class="app-header">
+      <a href="/" class="back-link">← SG Créations</a>
+      <h1>Bibliothèque École</h1>
+      <button id="menuBtn" class="btn-add-quick" aria-label="Menu utilisateur">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+      </button>
+    </header>
+
+    <!-- Reminder banner (overdue loans) -->
+    <div id="reminderBanner" class="reminder-banner hidden"></div>
+
+    <!-- Bottom nav -->
+    <nav class="app-nav" aria-label="Navigation">
+      <button class="nav-tab active" data-tab="shelf">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Livres
+      </button>
+      <button class="nav-tab" data-tab="add">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+        Ajouter
+      </button>
+      <button class="nav-tab" data-tab="loans">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Prêts
+        <span id="loansBadge" class="badge hidden">0</span>
+      </button>
+      <button class="nav-tab" data-tab="students">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+        Élèves
+      </button>
+      <button class="nav-tab" data-tab="search">
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        Chercher
+      </button>
+      <button class="nav-tab hidden" data-tab="admin" data-admin-only>
+        <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/><path d="M19 8h3"/><path d="M20.5 6.5v3"/></svg>
+        Admin
+      </button>
+    </nav>
+
+    <!-- Main content -->
+    <main class="app-main">
+
+      <!-- SHELF TAB -->
+      <div id="tab-shelf" class="tab-pane active">
+        <div class="shelf-toolbar">
+          <select id="filterGenre" class="filter-select">
+            <option value="">Tous les genres</option>
+          </select>
+          <select id="filterSort" class="filter-select">
+            <option value="recent">Récents en premier</option>
+            <option value="title">Titre A→Z</option>
+            <option value="author">Auteur A→Z</option>
+            <option value="genre">Genre</option>
+          </select>
+        </div>
+        <div id="shelfContent"></div>
+      </div>
+
+      <!-- ADD TAB -->
+      <div id="tab-add" class="tab-pane">
+        <div class="add-intro">
+          <div id="addMethods" class="add-methods">
+            <p class="section-title">Ajouter un livre</p>
+            <button id="btnScan" class="add-method-card">
+              <span class="method-icon">📷</span>
+              <strong>Scanner le code-barres</strong>
+              <span>Utilisez la caméra pour scanner l'ISBN</span>
+            </button>
+            <div class="method-divider">ou</div>
+            <div class="isbn-row">
+              <input id="isbnInput" class="text-input" type="text" inputmode="numeric" placeholder="ISBN (ex: 9782070360024)">
+              <button id="btnISBNLookup" class="btn-primary btn-sm">Chercher</button>
+            </div>
+            <div class="method-divider">ou</div>
+            <button id="btnManual" class="add-method-card">
+              <span class="method-icon">✏️</span>
+              <strong>Saisie manuelle</strong>
+              <span>Entrez les informations directement</span>
+            </button>
+          </div>
+
+          <div id="addLoading" class="api-loading hidden">
+            <div class="spinner"></div>
+            <p>Recherche en cours…</p>
+          </div>
+
+          <div id="scannerSection" class="scanner-wrap hidden">
+            <p class="scan-hint">Pointez la caméra vers le code-barres du livre</p>
+            <div id="reader"></div>
+            <button id="btnStopScanner" class="btn-stop">Annuler le scan</button>
+          </div>
+
+          <div id="bookForm" class="book-form hidden">
+            <div class="form-header">
+              <h2>Informations du livre</h2>
+            </div>
+            <div class="form-layout">
+              <div id="coverPreview" class="form-cover-preview">Couverture</div>
+              <div class="form-fields">
+                <div class="field-group">
+                  <label>Titre *</label>
+                  <input id="fTitle" class="text-input" type="text" placeholder="Titre du livre" required>
+                </div>
+                <div class="field-group">
+                  <label>Auteur</label>
+                  <input id="fAuthor" class="text-input" type="text" placeholder="Auteur(e)">
+                </div>
+                <div class="field-group">
+                  <label>Genre</label>
+                  <select id="fGenre" class="text-input"></select>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:13px;margin-top:4px">
+              <div class="field-group">
+                <label>Éditeur</label>
+                <input id="fPublisher" class="text-input" type="text" placeholder="Éditeur">
+              </div>
+              <div class="field-group">
+                <label>Année</label>
+                <input id="fYear" class="text-input" type="text" placeholder="2024" maxlength="4">
+              </div>
+              <div class="field-group">
+                <label>ISBN</label>
+                <input id="fISBN" class="text-input" type="text" placeholder="9782…">
+              </div>
+              <div class="field-group">
+                <label>Dimensions</label>
+                <input id="fDimensions" class="text-input" type="text" placeholder="ex : 24 × 17 cm">
+              </div>
+              <div class="field-group">
+                <label>URL de couverture</label>
+                <input id="fCoverUrl" class="text-input" type="url" placeholder="https://…">
+              </div>
+            </div>
+            <div class="form-actions" style="margin-top:20px">
+              <button id="btnCancelAdd" class="btn-secondary">Annuler</button>
+              <button id="btnSaveBook" class="btn-primary">Enregistrer</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOANS TAB -->
+      <div id="tab-loans" class="tab-pane">
+        <div class="loans-stats">
+          <span id="statTotal" class="stat-chip">0 prêt</span>
+          <span id="statOverdue" class="stat-chip">0 en retard</span>
+        </div>
+        <div id="loansContent"></div>
+      </div>
+
+      <!-- STUDENTS TAB -->
+      <div id="tab-students" class="tab-pane">
+        <div class="students-actions-top">
+          <p class="section-title">Élèves</p>
+          <div class="students-io-btns">
+            <button id="btnImportStudents" class="btn-secondary btn-sm">Importer</button>
+            <button id="btnNewClassModal" class="btn-primary btn-sm">+ Classe</button>
+          </div>
+        </div>
+        <div id="studentsContent"></div>
+      </div>
+
+      <!-- SEARCH TAB -->
+      <div id="tab-search" class="tab-pane">
+        <div class="field-group" style="margin-bottom:20px">
+          <input id="searchInput" class="text-input" type="search" placeholder="Titre, auteur, ISBN…" style="font-size:1rem;padding:12px 16px">
+        </div>
+        <div id="searchContent">
+          <div class="empty-state">
+            <div class="empty-icon">🔍</div>
+            <div class="empty-title">Tapez pour rechercher</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ADMIN TAB -->
+      <div id="tab-admin" class="tab-pane hidden" data-admin-only>
+        <p class="section-title">Gestion des comptes</p>
+        <div id="adminContent"></div>
+      </div>
+
+    </main>
+  </div><!-- /appContainer -->
+
+  <!-- ── BOOK DETAIL MODAL ──────────────────────────────────── -->
+  <div id="bookModal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('bookModal')" aria-label="Fermer">×</button>
+      <div id="bookModalBody" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ── LEND MODAL ─────────────────────────────────────────── -->
+  <div id="lendModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeModal('lendModal')" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Prêter le livre</h3>
+        <div class="field-group" style="margin-bottom:16px">
+          <label>Emprunteur</label>
+          <div class="borrower-field">
+            <div class="autocomplete-wrap">
+              <input id="borrowerInput" class="text-input" type="text" placeholder="Nom de l'élève…" autocomplete="off">
+              <ul id="autocompleteList" class="autocomplete-list hidden"></ul>
+            </div>
+            <div id="borrowerChip" class="borrower-chip hidden">
+              <span id="borrowerChipName"></span>
+              <button class="borrower-chip-remove" onclick="clearBorrower()" aria-label="Effacer">×</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeModal('lendModal')">Annuler</button>
+          <button class="btn-primary" onclick="confirmLend()">Confirmer le prêt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── NEW CLASS MODAL ────────────────────────────────────── -->
+  <div id="newClassModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeModal('newClassModal')" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Nouvelle classe</h3>
+        <div class="field-group" style="margin-bottom:16px">
+          <label>Nom de la classe</label>
+          <input id="newClassInput" class="text-input" type="text" placeholder="ex : CE2, CM1…">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeModal('newClassModal')">Annuler</button>
+          <button class="btn-primary" onclick="saveNewClass()">Ajouter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── ADD STUDENT MODAL ──────────────────────────────────── -->
+  <div id="addStudentModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeModal('addStudentModal')" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3 id="addStudentTitle">Ajouter un élève</h3>
+        <div class="field-group" style="margin-bottom:16px">
+          <label>Prénom et nom</label>
+          <input id="newStudentInput" class="text-input" type="text" placeholder="ex : Marie Dupont">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeModal('addStudentModal')">Annuler</button>
+          <button class="btn-primary" onclick="saveNewStudent()">Ajouter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── IMPORT STUDENTS MODAL ─────────────────────────────── -->
+  <div id="importModal" class="modal-overlay hidden">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal('importModal')" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Importer des élèves</h3>
+        <p style="font-size:0.85rem;color:#6B5249;margin-bottom:12px">Un élève par ligne : <code>Prénom Nom, Classe</code></p>
+        <textarea id="importTextarea" class="text-input import-textarea" placeholder="Alice Dupont, CE2&#10;Bob Martin, CM1&#10;Claire Lebrun, CM1"></textarea>
+        <div class="form-actions" style="margin-top:12px">
+          <button class="btn-secondary" onclick="closeModal('importModal')">Annuler</button>
+          <button class="btn-primary" onclick="confirmImport()">Importer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── USER MENU MODAL ────────────────────────────────────── -->
+  <div id="menuModal" class="modal-overlay hidden">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeModal('menuModal')" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Mon compte</h3>
+        <p style="font-size:0.85rem;color:#6B5249;margin-bottom:16px">Connecté en tant que <strong id="userDisplayName"></strong></p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <button class="btn-secondary" onclick="exportData()">Télécharger mes données</button>
+          <button class="btn-secondary" onclick="logout()">Se déconnecter</button>
+          <button class="btn-danger" onclick="deleteAccount()">Supprimer mon compte</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TOAST ──────────────────────────────────────────────── -->
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
