@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <title>Bibliothèque École — SG Créations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="app-header">
+    <a href="../index.html" class="back-link">← SG Créations</a>
+    <h1>Bibliothèque École</h1>
+    <button id="btn-add-quick" class="btn-add-quick" title="Ajouter un livre" aria-label="Ajouter un livre">+</button>
+  </header>
+
+  <div id="reminder-banner" class="reminder-banner" hidden></div>
+
+  <nav class="app-nav" role="tablist" aria-label="Navigation principale">
+    <button class="nav-tab active" data-tab="shelf" role="tab" aria-selected="true">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 19V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v13"/><path d="M4 19a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2"/><path d="M9 8h6M9 12h6"/></svg>
+      Livres
+    </button>
+    <button class="nav-tab" data-tab="loans" role="tab" aria-selected="false">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Prêts
+      <span id="loans-badge" class="badge" hidden aria-live="polite">0</span>
+    </button>
+    <button class="nav-tab" data-tab="students" role="tab" aria-selected="false">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Élèves
+    </button>
+    <button class="nav-tab" data-tab="add" role="tab" aria-selected="false">
+      <svg class="tab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
+      Ajouter
+    </button>
+  </nav>
+
+  <main class="app-main">
+
+    <!-- ===== SHELF ===== -->
+    <section id="tab-shelf" class="tab-pane active" role="tabpanel" aria-label="Livres">
+      <div class="shelf-toolbar">
+        <select id="filter-genre" class="filter-select" aria-label="Filtrer par genre">
+          <option value="">Tous les genres</option>
+        </select>
+        <select id="filter-author" class="filter-select" aria-label="Filtrer par auteur">
+          <option value="">Tous les auteurs</option>
+        </select>
+        <select id="sort-by" class="filter-select" aria-label="Trier par">
+          <option value="title">A → Z (titre)</option>
+          <option value="author">A → Z (auteur)</option>
+          <option value="date-desc">Ajout récent</option>
+          <option value="date-asc">Ajout ancien</option>
+        </select>
+      </div>
+      <div id="books-grid" class="books-grid" role="list"></div>
+      <div id="shelf-empty" class="empty-state" hidden>
+        <p class="empty-icon">📚</p>
+        <p class="empty-title">Catalogue vide</p>
+        <p class="empty-sub">Scannez ou entrez un livre pour commencer</p>
+        <button class="btn-primary" onclick="switchTab('add')">Ajouter un livre</button>
+      </div>
+    </section>
+
+    <!-- ===== LOANS ===== -->
+    <section id="tab-loans" class="tab-pane" role="tabpanel" aria-label="Prêts en cours">
+      <div id="loans-stats" class="loans-stats" hidden></div>
+      <div id="loans-list" role="list"></div>
+      <div id="loans-empty" class="empty-state" hidden>
+        <p class="empty-icon">✅</p>
+        <p class="empty-title">Aucun prêt en cours</p>
+        <p class="empty-sub">Tous les livres sont dans la bibliothèque</p>
+      </div>
+    </section>
+
+    <!-- ===== STUDENTS ===== -->
+    <section id="tab-students" class="tab-pane" role="tabpanel" aria-label="Élèves">
+      <div class="students-actions-top">
+        <h2 class="section-title">Gestion des élèves</h2>
+        <div class="students-io-btns">
+          <button id="btn-import-students" class="btn-secondary btn-sm">Importer JSON</button>
+          <button id="btn-export-students" class="btn-secondary btn-sm">Exporter JSON</button>
+        </div>
+      </div>
+      <div id="classes-list"></div>
+      <div id="students-empty" class="empty-state" hidden>
+        <p class="empty-icon">🎒</p>
+        <p class="empty-title">Aucune classe</p>
+        <p class="empty-sub">Commencez par créer une classe</p>
+      </div>
+      <div class="new-class-wrap">
+        <button id="btn-new-class" class="btn-outline-accent">+ Nouvelle classe</button>
+      </div>
+    </section>
+
+    <!-- ===== ADD ===== -->
+    <section id="tab-add" class="tab-pane" role="tabpanel" aria-label="Ajouter un livre">
+      <div id="add-intro" class="add-intro">
+        <h2 class="section-title">Ajouter un livre</h2>
+        <div class="add-methods">
+          <button id="btn-scan" class="add-method-card">
+            <span class="method-icon" aria-hidden="true">📷</span>
+            <strong>Scanner le code-barres</strong>
+            <span>Pointez la caméra vers le livre</span>
+          </button>
+          <div class="method-divider" aria-hidden="true">ou</div>
+          <div class="isbn-row">
+            <input type="text" id="isbn-input" class="text-input" placeholder="ISBN (ex : 9782070360024)" inputmode="numeric" aria-label="Numéro ISBN">
+            <button id="btn-isbn-search" class="btn-primary">Chercher</button>
+          </div>
+          <button id="btn-manual" class="btn-text">Saisie manuelle →</button>
+        </div>
+      </div>
+
+      <div id="scanner-wrap" class="scanner-wrap" hidden>
+        <p class="scan-hint">Pointez la caméra vers le code-barres du livre</p>
+        <div id="reader"></div>
+        <button id="btn-stop-scan" class="btn-stop">Arrêter le scan</button>
+      </div>
+
+      <form id="book-form" class="book-form" hidden novalidate>
+        <div class="form-header">
+          <h2 id="form-title-heading">Nouveau livre</h2>
+          <input type="hidden" id="field-id">
+          <input type="hidden" id="field-isbn">
+          <input type="hidden" id="field-cover-url">
+        </div>
+        <div class="form-layout">
+          <div id="form-cover-preview" class="form-cover-preview" aria-hidden="true">
+            <span>Pas de<br>couverture</span>
+          </div>
+          <div class="form-fields">
+            <div class="field-group">
+              <label for="field-title">Titre *</label>
+              <input type="text" id="field-title" class="text-input" required autocomplete="off">
+            </div>
+            <div class="field-group">
+              <label for="field-author">Auteur *</label>
+              <input type="text" id="field-author" class="text-input" required autocomplete="off">
+            </div>
+            <div class="field-group">
+              <label for="field-genre">Genre</label>
+              <select id="field-genre" class="text-input">
+                <option value="">Choisir…</option>
+                <option>Roman</option>
+                <option>Policier / Thriller</option>
+                <option>Science-Fiction</option>
+                <option>Fantasy</option>
+                <option>Biographie</option>
+                <option>Histoire</option>
+                <option>Sciences</option>
+                <option>Développement personnel</option>
+                <option>Jeunesse</option>
+                <option>Bande dessinée</option>
+                <option>Poésie</option>
+                <option>Autre</option>
+              </select>
+            </div>
+            <div class="field-group">
+              <label for="field-year">Année de parution</label>
+              <input type="number" id="field-year" class="text-input" min="1400" max="2100" placeholder="Ex : 1984">
+            </div>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" id="btn-form-cancel" class="btn-secondary">Annuler</button>
+          <button type="submit" class="btn-primary">Enregistrer</button>
+        </div>
+      </form>
+
+      <div id="api-loading" class="api-loading" hidden>
+        <div class="spinner" role="status" aria-label="Recherche en cours"></div>
+        <p>Recherche du livre…</p>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ===== BOOK DETAIL MODAL ===== -->
+  <div id="book-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Détail du livre">
+    <div class="modal">
+      <button class="modal-close" onclick="closeBookModal()" aria-label="Fermer">×</button>
+      <div id="book-modal-content"></div>
+    </div>
+  </div>
+
+  <!-- ===== LEND MODAL ===== -->
+  <div id="lend-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Prêter un livre">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeLendModal()" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Prêter ce livre</h3>
+        <div class="field-group autocomplete-wrap">
+          <label for="borrower-input">Élève *</label>
+          <div class="borrower-field">
+            <div id="borrower-chip" class="borrower-chip" hidden></div>
+            <input type="text" id="borrower-input" class="text-input" placeholder="Tapez un prénom ou nom…" autocomplete="off">
+          </div>
+          <ul id="autocomplete-list" class="autocomplete-list" hidden role="listbox" aria-label="Suggestions d'élèves"></ul>
+        </div>
+        <div class="field-group">
+          <label for="reminder-days">Envoyer un rappel après</label>
+          <div class="input-with-unit">
+            <input type="number" id="reminder-days" class="text-input" value="14" min="1" max="365">
+            <span class="unit">jours</span>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeLendModal()">Annuler</button>
+          <button id="btn-confirm-lend" class="btn-primary">Confirmer le prêt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD CLASS MODAL ===== -->
+  <div id="class-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Nouvelle classe">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeClassModal()" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Nouvelle classe</h3>
+        <div class="field-group">
+          <label for="class-name-input">Nom de la classe *</label>
+          <input type="text" id="class-name-input" class="text-input" placeholder="Ex : 6ème A" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeClassModal()">Annuler</button>
+          <button id="btn-confirm-class" class="btn-primary">Créer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ADD STUDENT MODAL ===== -->
+  <div id="student-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Nouvel élève">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeStudentModal()" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3 id="student-modal-title">Ajouter un élève</h3>
+        <input type="hidden" id="student-modal-class">
+        <div class="field-group">
+          <label for="student-firstname">Prénom *</label>
+          <input type="text" id="student-firstname" class="text-input" placeholder="Ex : Marie" autocomplete="off">
+        </div>
+        <div class="field-group">
+          <label for="student-lastname">Nom *</label>
+          <input type="text" id="student-lastname" class="text-input" placeholder="Ex : Dupont" autocomplete="off">
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeStudentModal()">Annuler</button>
+          <button id="btn-confirm-student" class="btn-primary">Ajouter</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== IMPORT MODAL ===== -->
+  <div id="import-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Importer des élèves">
+    <div class="modal modal-sm">
+      <button class="modal-close" onclick="closeImportModal()" aria-label="Fermer">×</button>
+      <div class="modal-body">
+        <h3>Importer des élèves (JSON)</h3>
+        <div class="field-group">
+          <label for="import-json">Collez le JSON ici</label>
+          <textarea id="import-json" class="text-input import-textarea" placeholder='{"version":1,"classes":[{"nom":"6ème A","élèves":[{"prénom":"Marie","nom":"Dupont"}]}]}'></textarea>
+        </div>
+        <div class="form-actions">
+          <button class="btn-secondary" onclick="closeImportModal()">Annuler</button>
+          <button id="btn-confirm-import" class="btn-primary">Importer</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TOAST ===== -->
+  <div id="toast" class="toast" aria-live="assertive" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
