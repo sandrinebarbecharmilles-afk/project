@@ -1,82 +1,142 @@
 'use strict'
 
 /* ============================================================
-   DATABASE — localStorage
+   FIREBASE INIT + AUTH GUARD
+   ============================================================ */
+
+firebase.initializeApp(FIREBASE_CONFIG)
+const auth = firebase.auth()
+const db   = firebase.firestore()
+
+// Redirect to login if not authenticated / not authorized
+auth.onAuthStateChanged(async function(user) {
+  if (!user) {
+    window.location.href = 'login.html'
+    return
+  }
+  // Check authorization
+  let authorized = false
+  if (user.email === ADMIN_EMAIL) {
+    authorized = true
+    // Show admin button for admin user
+    const btnAdmin = document.getElementById('btn-admin')
+    if (btnAdmin) btnAdmin.style.display = ''
+  } else {
+    try {
+      const snap = await db.collection('authorized_users').doc(user.email).get()
+      authorized = snap.exists
+    } catch { authorized = false }
+  }
+
+  if (!authorized) {
+    // Show unauthorized message instead of app
+    document.querySelector('.app-nav').hidden   = true
+    document.querySelector('.app-main').hidden  = true
+    const banner = document.getElementById('reminder-banner')
+    banner.hidden = false
+    banner.style.background = 'rgba(178,34,34,0.07)'
+    banner.style.padding = '40px 20px'
+    banner.style.textAlign = 'center'
+    banner.innerHTML =
+      '<p style="font-size:1.1rem;font-weight:600;color:#B22222;margin-bottom:8px">Accès non autorisé</p>' +
+      '<p style="font-size:0.88rem;color:#6B5249;margin-bottom:20px">Votre compte n\'est pas autorisé à accéder à cette application.</p>' +
+      '<button class="btn-secondary" onclick="doSignOut()">Se déconnecter</button>'
+    return
+  }
+
+  // Show sign-out button
+  const btnSignout = document.getElementById('btn-signout')
+  if (btnSignout) btnSignout.style.display = ''
+
+  // App is ready — initialize
+  init()
+})
+
+function doSignOut() {
+  auth.signOut().then(function() { window.location.href = 'login.html' })
+}
+
+/* ============================================================
+   DATABASE — Firestore
    ============================================================ */
 
 const DB = {
-  BOOKS_KEY:    'sg-ecole-livres-v1',
-  STUDENTS_KEY: 'sg-ecole-eleves-v1',
 
   /* --- Books --- */
 
-  allBooks() {
-    try { return JSON.parse(localStorage.getItem(this.BOOKS_KEY) || '[]') }
-    catch { return [] }
+  async allBooks() {
+    try {
+      const snap = await db.collection('livres').get()
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()) })
+    } catch { return [] }
   },
 
-  saveBooks(books) { localStorage.setItem(this.BOOKS_KEY, JSON.stringify(books)) },
-
-  addBook(book) {
-    const books = this.allBooks()
-    const entry = { ...book, id: crypto.randomUUID(), addedDate: new Date().toISOString(), lent: null }
-    books.push(entry)
-    this.saveBooks(books)
-    return entry
+  async addBook(book) {
+    const entry = Object.assign({}, book, {
+      addedDate: new Date().toISOString(),
+      lent: null
+    })
+    const ref = await db.collection('livres').add(entry)
+    return Object.assign({ id: ref.id }, entry)
   },
 
-  updateBook(id, updates) {
-    this.saveBooks(this.allBooks().map(b => b.id === id ? { ...b, ...updates } : b))
+  async updateBook(id, updates) {
+    await db.collection('livres').doc(id).update(updates)
   },
 
-  removeBook(id) { this.saveBooks(this.allBooks().filter(b => b.id !== id)) },
+  async removeBook(id) {
+    await db.collection('livres').doc(id).delete()
+  },
 
-  getBook(id) { return this.allBooks().find(b => b.id === id) || null },
+  async getBook(id) {
+    const snap = await db.collection('livres').doc(id).get()
+    if (!snap.exists) return null
+    return Object.assign({ id: snap.id }, snap.data())
+  },
 
   /* --- Students --- */
 
-  allStudents() {
-    try { return JSON.parse(localStorage.getItem(this.STUDENTS_KEY) || '[]') }
-    catch { return [] }
+  async allStudents() {
+    try {
+      const snap = await db.collection('eleves').get()
+      return snap.docs.map(function(d) { return Object.assign({ id: d.id }, d.data()) })
+    } catch { return [] }
   },
 
-  saveStudents(students) { localStorage.setItem(this.STUDENTS_KEY, JSON.stringify(students)) },
-
-  addStudent(firstName, lastName, className) {
-    const students = this.allStudents()
+  async addStudent(firstName, lastName, className) {
     const entry = {
-      id: crypto.randomUUID(),
-      firstName: firstName.trim(),
-      lastName: lastName.trim(),
-      className: className.trim(),
-      addedDate: new Date().toISOString()
+      firstName:  firstName.trim(),
+      lastName:   lastName.trim(),
+      className:  className.trim(),
+      addedDate:  new Date().toISOString()
     }
-    students.push(entry)
-    this.saveStudents(students)
-    return entry
+    const ref = await db.collection('eleves').add(entry)
+    return Object.assign({ id: ref.id }, entry)
   },
 
-  removeStudent(id) { this.saveStudents(this.allStudents().filter(s => s.id !== id)) },
-
-  addClassName(name) {
-    /* Classes are implicit: they exist when they have at least one student,
-       or are tracked in a separate class-names list so empty classes survive. */
-    const classes = this.allClassNames()
-    const trimmed = name.trim()
-    if (!classes.includes(trimmed)) {
-      classes.push(trimmed)
-      localStorage.setItem('sg-ecole-classes-v1', JSON.stringify(classes))
-    }
+  async removeStudent(id) {
+    await db.collection('eleves').doc(id).delete()
   },
 
-  allClassNames() {
-    try { return JSON.parse(localStorage.getItem('sg-ecole-classes-v1') || '[]') }
-    catch { return [] }
+  /* Classes are derived from students — we also store them as a subcollection for empty classes */
+  async allClassNames() {
+    try {
+      const [studentsSnap, classesSnap] = await Promise.all([
+        db.collection('eleves').get(),
+        db.collection('classes').get()
+      ])
+      const fromStudents = studentsSnap.docs.map(function(d) { return d.data().className }).filter(Boolean)
+      const fromClasses  = classesSnap.docs.map(function(d) { return d.id })
+      return [...new Set([...fromStudents, ...fromClasses])].sort(function(a, b) { return a.localeCompare(b, 'fr') })
+    } catch { return [] }
   },
 
-  removeClassName(name) {
-    const classes = this.allClassNames().filter(c => c !== name)
-    localStorage.setItem('sg-ecole-classes-v1', JSON.stringify(classes))
+  async addClassName(name) {
+    await db.collection('classes').doc(name.trim()).set({ createdDate: new Date().toISOString() }, { merge: true })
+  },
+
+  async removeClassName(name) {
+    await db.collection('classes').doc(name.trim()).delete()
   }
 }
 
@@ -94,12 +154,14 @@ async function fetchBookByISBN(isbn) {
       if (data.items?.length) {
         const vol = data.items[0].volumeInfo
         return {
-          isbn: clean,
-          title: vol.title || '',
-          author: (vol.authors || []).join(', '),
-          genre: mapGenre(vol.categories?.[0] || ''),
-          year: vol.publishedDate ? parseInt(vol.publishedDate) || '' : '',
-          coverUrl: (vol.imageLinks?.thumbnail || vol.imageLinks?.smallThumbnail || '').replace('http:', 'https:')
+          isbn:       clean,
+          title:      vol.title || '',
+          author:     (vol.authors || []).join(', '),
+          genre:      mapGenre(vol.categories?.[0] || ''),
+          year:       vol.publishedDate ? parseInt(vol.publishedDate) || '' : '',
+          publisher:  vol.publisher || '',
+          dimensions: '',
+          coverUrl:   (vol.imageLinks?.thumbnail || vol.imageLinks?.smallThumbnail || '').replace('http:', 'https:')
         }
       }
     }
@@ -112,12 +174,14 @@ async function fetchBookByISBN(isbn) {
       const entry = data[`ISBN:${clean}`]
       if (entry) {
         return {
-          isbn: clean,
-          title: entry.title || '',
-          author: (entry.authors || []).map(a => a.name).join(', '),
-          genre: '',
-          year: entry.publish_date ? parseInt(entry.publish_date) || '' : '',
-          coverUrl: entry.cover?.large || entry.cover?.medium || ''
+          isbn:       clean,
+          title:      entry.title || '',
+          author:     (entry.authors || []).map(function(a) { return a.name }).join(', '),
+          genre:      '',
+          year:       entry.publish_date ? parseInt(entry.publish_date) || '' : '',
+          publisher:  (entry.publishers || []).map(function(p) { return p.name }).join(', '),
+          dimensions: '',
+          coverUrl:   entry.cover?.large || entry.cover?.medium || ''
         }
       }
     }
@@ -163,14 +227,14 @@ function startScanner() {
   scanner.start(
     { facingMode: 'environment' },
     { fps: 10, qrbox: { width: 260, height: 100 }, aspectRatio: 1.6 },
-    (decodedText) => {
+    function(decodedText) {
       if (scannerBusy) return
       scannerBusy = true
       stopScanner()
       handleISBNScanned(decodedText)
     },
-    () => { /* ignore scan errors silently */ }
-  ).catch(() => {
+    function() { /* ignore scan errors silently */ }
+  ).catch(function() {
     stopScanner()
     showToast('Impossible d\'accéder à la caméra. Vérifiez les permissions.')
   })
@@ -178,7 +242,7 @@ function startScanner() {
 
 function stopScanner() {
   if (scanner) {
-    scanner.stop().catch(() => {})
+    scanner.stop().catch(function() {})
     scanner = null
   }
   document.getElementById('scanner-wrap').hidden = true
@@ -216,15 +280,21 @@ function populateForm(book, isEdit) {
   document.getElementById('book-form').hidden = false
 
   document.getElementById('form-title-heading').textContent = isEdit ? 'Modifier le livre' : 'Nouveau livre'
-  document.getElementById('field-id').value = book.id || ''
-  document.getElementById('field-isbn').value = book.isbn || ''
-  document.getElementById('field-title').value = book.title || ''
-  document.getElementById('field-author').value = book.author || ''
-  document.getElementById('field-year').value = book.year || ''
-  document.getElementById('field-cover-url').value = book.coverUrl || ''
+  document.getElementById('field-id').value         = book.id || ''
+  document.getElementById('field-isbn').value       = book.isbn || ''
+  document.getElementById('field-title').value      = book.title || ''
+  document.getElementById('field-author').value     = book.author || ''
+  document.getElementById('field-year').value       = book.year || ''
+  document.getElementById('field-cover-url').value  = book.coverUrl || ''
+  document.getElementById('field-publisher').value  = book.publisher || ''
+
+  // Dimensions select: set if value matches an option, else blank
+  const dimSelect = document.getElementById('field-dimensions')
+  const dimFound = [...dimSelect.options].find(function(o) { return o.value === (book.dimensions || '') })
+  dimSelect.value = dimFound ? (book.dimensions || '') : ''
 
   const genreSelect = document.getElementById('field-genre')
-  const found = [...genreSelect.options].find(o => o.value === book.genre)
+  const found = [...genreSelect.options].find(function(o) { return o.value === book.genre })
   genreSelect.value = found ? book.genre : ''
 
   const preview = document.getElementById('form-cover-preview')
@@ -238,27 +308,27 @@ function populateForm(book, isEdit) {
 }
 
 function resetAddTab() {
-  document.getElementById('add-intro').hidden = false
-  document.getElementById('book-form').hidden = true
+  document.getElementById('add-intro').hidden   = false
+  document.getElementById('book-form').hidden   = true
   document.getElementById('api-loading').hidden = true
   document.getElementById('scanner-wrap').hidden = true
-  document.getElementById('isbn-input').value = ''
+  document.getElementById('isbn-input').value   = ''
 }
 
 /* ============================================================
    RENDERING — SHELF
    ============================================================ */
 
-function renderShelf() {
-  let books = DB.allBooks()
-  const genre = document.getElementById('filter-genre').value
+async function renderShelf() {
+  let books = await DB.allBooks()
+  const genre  = document.getElementById('filter-genre').value
   const author = document.getElementById('filter-author').value
-  const sort = document.getElementById('sort-by').value
+  const sort   = document.getElementById('sort-by').value
 
-  if (genre) books = books.filter(b => b.genre === genre)
-  if (author) books = books.filter(b => b.author === author)
+  if (genre)  books = books.filter(function(b) { return b.genre === genre })
+  if (author) books = books.filter(function(b) { return b.author === author })
 
-  books.sort((a, b) => {
+  books.sort(function(a, b) {
     switch (sort) {
       case 'author':    return (a.author || '').localeCompare(b.author || '', 'fr')
       case 'date-desc': return new Date(b.addedDate) - new Date(a.addedDate)
@@ -267,7 +337,7 @@ function renderShelf() {
     }
   })
 
-  const grid = document.getElementById('books-grid')
+  const grid  = document.getElementById('books-grid')
   const empty = document.getElementById('shelf-empty')
 
   if (!books.length) {
@@ -278,7 +348,7 @@ function renderShelf() {
     grid.innerHTML = books.map(bookCard).join('')
   }
 
-  rebuildFilters()
+  rebuildFilters(books)
 }
 
 function bookCard(book) {
@@ -286,7 +356,7 @@ function bookCard(book) {
     ? `<img class="book-cover" src="${escHtml(book.coverUrl)}" alt="" loading="lazy" onerror="this.outerHTML='<div class=\\'book-cover-placeholder\\'>📚</div>'">`
     : '<div class="book-cover-placeholder" aria-hidden="true">📚</div>'
 
-  const genre = book.genre ? `<span class="book-card-genre">${escHtml(book.genre)}</span>` : ''
+  const genre    = book.genre ? `<span class="book-card-genre">${escHtml(book.genre)}</span>` : ''
   const lentBadge = book.lent ? '<span class="book-lent-badge">Prêté</span>' : ''
 
   return `
@@ -302,35 +372,35 @@ function bookCard(book) {
     </article>`
 }
 
-function rebuildFilters() {
-  const books = DB.allBooks()
-  const genres = [...new Set(books.map(b => b.genre).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'))
-  const authors = [...new Set(books.map(b => b.author).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'fr'))
+function rebuildFilters(books) {
+  const genres  = [...new Set(books.map(function(b) { return b.genre }).filter(Boolean))].sort(function(a, b) { return a.localeCompare(b, 'fr') })
+  const authors = [...new Set(books.map(function(b) { return b.author }).filter(Boolean))].sort(function(a, b) { return a.localeCompare(b, 'fr') })
 
-  const genreEl = document.getElementById('filter-genre')
+  const genreEl  = document.getElementById('filter-genre')
   const authorEl = document.getElementById('filter-author')
-  const savedGenre = genreEl.value
+  const savedGenre  = genreEl.value
   const savedAuthor = authorEl.value
 
-  genreEl.innerHTML = '<option value="">Tous les genres</option>' +
-    genres.map(g => `<option${g === savedGenre ? ' selected' : ''}>${escHtml(g)}</option>`).join('')
+  genreEl.innerHTML  = '<option value="">Tous les genres</option>' +
+    genres.map(function(g) { return `<option${g === savedGenre ? ' selected' : ''}>${escHtml(g)}</option>` }).join('')
 
   authorEl.innerHTML = '<option value="">Tous les auteurs</option>' +
-    authors.map(a => `<option${a === savedAuthor ? ' selected' : ''}>${escHtml(a)}</option>`).join('')
+    authors.map(function(a) { return `<option${a === savedAuthor ? ' selected' : ''}>${escHtml(a)}</option>` }).join('')
 }
 
 /* ============================================================
    RENDERING — LOANS
    ============================================================ */
 
-function renderLoans() {
-  const books = DB.allBooks().filter(b => b.lent)
-  const list = document.getElementById('loans-list')
+async function renderLoans() {
+  const allBooks = await DB.allBooks()
+  const books = allBooks.filter(function(b) { return b.lent })
+  const list  = document.getElementById('loans-list')
   const empty = document.getElementById('loans-empty')
   const badge = document.getElementById('loans-badge')
   const statsBar = document.getElementById('loans-stats')
 
-  const overdueCount = books.filter(b => daysSince(b.lent.lentDate) >= b.lent.reminderDays).length
+  const overdueCount = books.filter(function(b) { return daysSince(b.lent.lentDate) >= b.lent.reminderDays }).length
 
   if (books.length) {
     badge.textContent = books.length
@@ -348,19 +418,19 @@ function renderLoans() {
 
   empty.hidden = true
   statsBar.hidden = false
-  statsBar.innerHTML = `
-    <span class="stat-chip">${books.length} prêt${books.length > 1 ? 's' : ''}</span>
-    ${overdueCount > 0 ? `<span class="stat-chip overdue">${overdueCount} en retard</span>` : ''}
-  `
+  statsBar.innerHTML =
+    `<span class="stat-chip">${books.length} prêt${books.length > 1 ? 's' : ''}</span>` +
+    (overdueCount > 0 ? `<span class="stat-chip overdue">${overdueCount} en retard</span>` : '')
+
   list.innerHTML = books.map(loanCard).join('')
 }
 
 function loanCard(book) {
-  const lent = book.lent
-  const days = daysSince(lent.lentDate)
-  const overdue = days >= lent.reminderDays
+  const lent      = book.lent
+  const days      = daysSince(lent.lentDate)
+  const overdue   = days >= lent.reminderDays
   const overdueClass = overdue ? 'loan-overdue' : ''
-  const overdueTag = overdue ? ' — ⚠️ rappel suggéré' : ''
+  const overdueTag   = overdue ? ' — ⚠️ rappel suggéré' : ''
 
   const cover = book.coverUrl
     ? `<div class="loan-cover"><img src="${escHtml(book.coverUrl)}" alt="" loading="lazy" onerror="this.parentElement.innerHTML='📚'"></div>`
@@ -398,18 +468,16 @@ function loanCard(book) {
    RENDERING — STUDENTS
    ============================================================ */
 
-function renderStudents() {
-  const students = DB.allStudents()
-  const classNames = DB.allClassNames()
+async function renderStudents() {
+  const [students, classNames] = await Promise.all([DB.allStudents(), DB.allClassNames()])
 
-  // Build a combined set of class names: from the explicit list + from students
   const allClassNames = [...new Set([
     ...classNames,
-    ...students.map(s => s.className)
-  ])].sort((a, b) => a.localeCompare(b, 'fr'))
+    ...students.map(function(s) { return s.className })
+  ])].sort(function(a, b) { return a.localeCompare(b, 'fr') })
 
   const container = document.getElementById('classes-list')
-  const emptyEl = document.getElementById('students-empty')
+  const emptyEl   = document.getElementById('students-empty')
 
   if (!allClassNames.length) {
     container.innerHTML = ''
@@ -418,15 +486,17 @@ function renderStudents() {
   }
 
   emptyEl.hidden = true
-  container.innerHTML = allClassNames.map(cls => {
-    const clsStudents = students.filter(s => s.className === cls)
-      .sort((a, b) => a.lastName.localeCompare(b.lastName, 'fr') || a.firstName.localeCompare(b.firstName, 'fr'))
+  container.innerHTML = allClassNames.map(function(cls) {
+    const clsStudents = students.filter(function(s) { return s.className === cls })
+      .sort(function(a, b) { return a.lastName.localeCompare(b.lastName, 'fr') || a.firstName.localeCompare(b.firstName, 'fr') })
 
-    const rows = clsStudents.map(s => `
-      <li class="student-row">
-        <span class="student-row-name">${escHtml(s.firstName)} ${escHtml(s.lastName)}</span>
-        <button class="btn-delete-student" onclick="confirmDeleteStudent('${s.id}')" aria-label="Supprimer ${escHtml(s.firstName)} ${escHtml(s.lastName)}">✕</button>
-      </li>`).join('')
+    const rows = clsStudents.map(function(s) {
+      return `
+        <li class="student-row">
+          <span class="student-row-name">${escHtml(s.firstName)} ${escHtml(s.lastName)}</span>
+          <button class="btn-delete-student" onclick="confirmDeleteStudent('${s.id}')" aria-label="Supprimer ${escHtml(s.firstName)} ${escHtml(s.lastName)}">✕</button>
+        </li>`
+    }).join('')
 
     return `
       <div class="class-section">
@@ -445,8 +515,8 @@ function renderStudents() {
    BOOK DETAIL MODAL
    ============================================================ */
 
-function showBookModal(id) {
-  const book = DB.getBook(id)
+async function showBookModal(id) {
+  const book = await DB.getBook(id)
   if (!book) return
 
   const content = document.getElementById('book-modal-content')
@@ -456,9 +526,11 @@ function showBookModal(id) {
     : '<div class="book-detail-cover-placeholder" aria-hidden="true">📚</div>'
 
   const chips = [
-    book.genre && `<span class="meta-chip">${escHtml(book.genre)}</span>`,
-    book.year && `<span class="meta-chip">${book.year}</span>`,
-    book.isbn && `<span class="meta-chip">ISBN ${escHtml(book.isbn)}</span>`
+    book.genre      && `<span class="meta-chip">${escHtml(book.genre)}</span>`,
+    book.year       && `<span class="meta-chip">${book.year}</span>`,
+    book.publisher  && `<span class="meta-chip">${escHtml(book.publisher)}</span>`,
+    book.dimensions && `<span class="meta-chip">${escHtml(book.dimensions)}</span>`,
+    book.isbn       && `<span class="meta-chip">ISBN ${escHtml(book.isbn)}</span>`
   ].filter(Boolean).join('')
 
   const lentBlock = book.lent ? `
@@ -496,57 +568,61 @@ function closeBookModal() {
    LEND MODAL — with student autocomplete
    ============================================================ */
 
-let lendingBookId = null
+let lendingBookId   = null
 let selectedStudent = null   // { id, firstName, lastName, className } | null (free-form)
-let acSelectedIdx = -1
+let acSelectedIdx   = -1
+let _allStudentsCache = []   // for autocomplete
 
-function showLendModal(id) {
-  lendingBookId = id
+async function showLendModal(id) {
+  lendingBookId   = id
   selectedStudent = null
-  acSelectedIdx = -1
+  acSelectedIdx   = -1
 
-  const chip = document.getElementById('borrower-chip')
+  const chip  = document.getElementById('borrower-chip')
   const input = document.getElementById('borrower-input')
-  chip.hidden = true
+  chip.hidden   = true
   chip.innerHTML = ''
-  input.value = ''
-  input.hidden = false
+  input.value   = ''
+  input.hidden  = false
   document.getElementById('autocomplete-list').hidden = true
   document.getElementById('reminder-days').value = '14'
   document.getElementById('lend-modal').hidden = false
-  setTimeout(() => input.focus(), 50)
+  setTimeout(function() { input.focus() }, 50)
+
+  // Cache students for autocomplete
+  _allStudentsCache = await DB.allStudents()
 }
 
 function closeLendModal() {
   document.getElementById('lend-modal').hidden = true
   document.getElementById('autocomplete-list').hidden = true
-  lendingBookId = null
+  lendingBookId   = null
   selectedStudent = null
 }
 
 function setBorrowerChip(student) {
   selectedStudent = student
-  const chip = document.getElementById('borrower-chip')
+  const chip  = document.getElementById('borrower-chip')
   const input = document.getElementById('borrower-input')
 
   chip.innerHTML = `
     <span>${escHtml(student.firstName)} ${escHtml(student.lastName)} — ${escHtml(student.className)}</span>
     <button class="borrower-chip-remove" onclick="clearBorrowerChip()" aria-label="Effacer">×</button>
   `
-  chip.hidden = false
+  chip.hidden  = false
   input.hidden = true
-  input.value = ''
+  input.value  = ''
   document.getElementById('autocomplete-list').hidden = true
 }
 
 function clearBorrowerChip() {
   selectedStudent = null
-  const chip = document.getElementById('borrower-chip')
+  const chip  = document.getElementById('borrower-chip')
   const input = document.getElementById('borrower-input')
-  chip.hidden = true
+  chip.hidden  = true
   chip.innerHTML = ''
   input.hidden = false
-  input.value = ''
+  input.value  = ''
   input.focus()
 }
 
@@ -560,12 +636,12 @@ function renderAutocomplete(query) {
   }
 
   const q = query.toLowerCase()
-  const students = DB.allStudents()
-  const matches = students.filter(s =>
-    s.firstName.toLowerCase().includes(q) ||
-    s.lastName.toLowerCase().includes(q) ||
-    s.className.toLowerCase().includes(q)
-  ).slice(0, 8)
+  const students = _allStudentsCache
+  const matches = students.filter(function(s) {
+    return s.firstName.toLowerCase().includes(q) ||
+           s.lastName.toLowerCase().includes(q)  ||
+           s.className.toLowerCase().includes(q)
+  }).slice(0, 8)
 
   if (!matches.length) {
     list.hidden = true
@@ -574,23 +650,24 @@ function renderAutocomplete(query) {
   }
 
   acSelectedIdx = -1
-  list.hidden = false
-  list.innerHTML = matches.map((s, i) => `
-    <li class="autocomplete-item"
-        role="option"
-        aria-selected="false"
-        data-idx="${i}"
-        onmousedown="selectAutocompleteStudent(${i})">
-      <span>${escHtml(s.firstName)} ${escHtml(s.lastName)}</span>
-      <span class="autocomplete-item-class">${escHtml(s.className)}</span>
-    </li>`
-  ).join('')
+  list.hidden   = false
+  list.innerHTML = matches.map(function(s, i) {
+    return `
+      <li class="autocomplete-item"
+          role="option"
+          aria-selected="false"
+          data-idx="${i}"
+          onmousedown="selectAutocompleteStudent(${i})">
+        <span>${escHtml(s.firstName)} ${escHtml(s.lastName)}</span>
+        <span class="autocomplete-item-class">${escHtml(s.className)}</span>
+      </li>`
+  }).join('')
 
   list._matches = matches
 }
 
 function selectAutocompleteStudent(idx) {
-  const list = document.getElementById('autocomplete-list')
+  const list    = document.getElementById('autocomplete-list')
   const matches = list._matches || []
   const student = matches[idx]
   if (!student) return
@@ -601,52 +678,58 @@ function selectAutocompleteStudent(idx) {
    LOAN ACTIONS
    ============================================================ */
 
-function markReturned(id) {
-  DB.updateBook(id, { lent: null })
+async function markReturned(id) {
+  await DB.updateBook(id, { lent: null })
   renderShelf()
   renderLoans()
   checkReminders()
   showToast('Retour enregistré !')
 }
 
-function sendReminder(id) {
-  const book = DB.getBook(id)
+async function sendReminder(id) {
+  const book = await DB.getBook(id)
   if (!book?.lent) return
   const days = daysSince(book.lent.lentDate)
-  const studentName = book.lent.studentName
-  const subject = encodeURIComponent(`Rappel — "${book.title}"`)
-  const body = encodeURIComponent(
-    `Bonjour ${studentName},\n\n` +
-    `Je te rappelle que tu as emprunté "${book.title}" il y a ${days} jour${days > 1 ? 's' : ''}.\n` +
-    `Merci de me le rapporter dès que possible.\n\n` +
-    `Cordialement`
-  )
-  window.open(`mailto:?subject=${subject}&body=${body}`, '_blank')
+
+  // Build URL params for lettre.html
+  const params = new URLSearchParams({
+    student:    book.lent.studentName || '',
+    class:      book.lent.studentClass || '',
+    title:      book.title || '',
+    author:     book.author || '',
+    publisher:  book.publisher || '',
+    dimensions: book.dimensions || '',
+    lentDate:   book.lent.lentDate || '',
+    days:       String(days)
+  })
+
+  // Open reminder letter in new tab
+  window.open('lettre.html?' + params.toString(), '_blank')
 }
 
-function editBook(id) {
-  const book = DB.getBook(id)
+async function editBook(id) {
+  const book = await DB.getBook(id)
   if (!book) return
   switchTab('add')
   populateForm(book, true)
 }
 
-function confirmDeleteBook(id) {
+async function confirmDeleteBook(id) {
   closeBookModal()
   if (confirm('Supprimer ce livre du catalogue ?')) {
-    DB.removeBook(id)
+    await DB.removeBook(id)
     renderShelf()
     renderLoans()
     showToast('Livre supprimé')
   }
 }
 
-function confirmDeleteStudent(id) {
-  const students = DB.allStudents()
-  const student = students.find(s => s.id === id)
+async function confirmDeleteStudent(id) {
+  const students = await DB.allStudents()
+  const student  = students.find(function(s) { return s.id === id })
   if (!student) return
   if (confirm(`Supprimer ${student.firstName} ${student.lastName} de la liste ?`)) {
-    DB.removeStudent(id)
+    await DB.removeStudent(id)
     renderStudents()
     showToast('Élève supprimé')
   }
@@ -659,7 +742,7 @@ function confirmDeleteStudent(id) {
 function openClassModal() {
   document.getElementById('class-name-input').value = ''
   document.getElementById('class-modal').hidden = false
-  setTimeout(() => document.getElementById('class-name-input').focus(), 50)
+  setTimeout(function() { document.getElementById('class-name-input').focus() }, 50)
 }
 
 function closeClassModal() {
@@ -674,9 +757,9 @@ function openStudentModal(className) {
   document.getElementById('student-modal-class').value = className
   document.getElementById('student-modal-title').textContent = `Ajouter un élève — ${className}`
   document.getElementById('student-firstname').value = ''
-  document.getElementById('student-lastname').value = ''
-  document.getElementById('student-modal').hidden = false
-  setTimeout(() => document.getElementById('student-firstname').focus(), 50)
+  document.getElementById('student-lastname').value  = ''
+  document.getElementById('student-modal').hidden    = false
+  setTimeout(function() { document.getElementById('student-firstname').focus() }, 50)
 }
 
 function closeStudentModal() {
@@ -688,7 +771,7 @@ function closeStudentModal() {
    ============================================================ */
 
 function openImportModal() {
-  document.getElementById('import-json').value = ''
+  document.getElementById('import-json').value  = ''
   document.getElementById('import-modal').hidden = false
 }
 
@@ -696,12 +779,11 @@ function closeImportModal() {
   document.getElementById('import-modal').hidden = true
 }
 
-function doImport() {
+async function doImport() {
   const raw = document.getElementById('import-json').value.trim()
   let parsed
-  try {
-    parsed = JSON.parse(raw)
-  } catch {
+  try { parsed = JSON.parse(raw) }
+  catch {
     showToast('JSON invalide. Vérifiez le format.')
     return
   }
@@ -714,11 +796,11 @@ function doImport() {
   let added = 0
   for (const cls of parsed.classes) {
     if (!cls.nom) continue
-    DB.addClassName(cls.nom)
+    await DB.addClassName(cls.nom)
     const eleves = Array.isArray(cls['élèves']) ? cls['élèves'] : []
     for (const e of eleves) {
       if (e['prénom'] && e['nom']) {
-        DB.addStudent(e['prénom'], e['nom'], cls.nom)
+        await DB.addStudent(e['prénom'], e['nom'], cls.nom)
         added++
       }
     }
@@ -729,30 +811,31 @@ function doImport() {
   showToast(`${added} élève${added > 1 ? 's' : ''} importé${added > 1 ? 's' : ''} !`)
 }
 
-function doExport() {
-  const students = DB.allStudents()
-  const classNames = DB.allClassNames()
+async function doExport() {
+  const [students, classNames] = await Promise.all([DB.allStudents(), DB.allClassNames()])
 
   const allClassNames = [...new Set([
     ...classNames,
-    ...students.map(s => s.className)
-  ])].sort((a, b) => a.localeCompare(b, 'fr'))
+    ...students.map(function(s) { return s.className })
+  ])].sort(function(a, b) { return a.localeCompare(b, 'fr') })
 
   const out = {
     version: 1,
-    classes: allClassNames.map(cls => ({
-      nom: cls,
-      'élèves': students
-        .filter(s => s.className === cls)
-        .sort((a, b) => a.lastName.localeCompare(b.lastName, 'fr'))
-        .map(s => ({ 'prénom': s.firstName, 'nom': s.lastName }))
-    }))
+    classes: allClassNames.map(function(cls) {
+      return {
+        nom: cls,
+        'élèves': students
+          .filter(function(s) { return s.className === cls })
+          .sort(function(a, b) { return a.lastName.localeCompare(b.lastName, 'fr') })
+          .map(function(s) { return { 'prénom': s.firstName, 'nom': s.lastName } })
+      }
+    })
   }
 
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
   a.download = `eleves-${new Date().toISOString().slice(0,10)}.json`
   a.click()
   URL.revokeObjectURL(url)
@@ -762,9 +845,10 @@ function doExport() {
    REMINDERS CHECK
    ============================================================ */
 
-function checkReminders() {
-  const overdue = DB.allBooks().filter(b => b.lent && daysSince(b.lent.lentDate) >= b.lent.reminderDays)
-  const banner = document.getElementById('reminder-banner')
+async function checkReminders() {
+  const allBooks = await DB.allBooks()
+  const overdue  = allBooks.filter(function(b) { return b.lent && daysSince(b.lent.lentDate) >= b.lent.reminderDays })
+  const banner   = document.getElementById('reminder-banner')
 
   if (!overdue.length) {
     banner.hidden = true
@@ -772,7 +856,7 @@ function checkReminders() {
   }
 
   banner.hidden = false
-  banner.innerHTML = overdue.map(book => {
+  banner.innerHTML = overdue.map(function(book) {
     const days = daysSince(book.lent.lentDate)
     return `
       <div class="reminder-item">
@@ -795,13 +879,13 @@ function checkReminders() {
 function switchTab(name) {
   if (name !== 'add' && scanner) stopScanner()
 
-  document.querySelectorAll('.nav-tab').forEach(t => {
+  document.querySelectorAll('.nav-tab').forEach(function(t) {
     const active = t.dataset.tab === name
     t.classList.toggle('active', active)
     t.setAttribute('aria-selected', String(active))
   })
 
-  document.querySelectorAll('.tab-pane').forEach(p => {
+  document.querySelectorAll('.tab-pane').forEach(function(p) {
     p.classList.toggle('active', p.id === `tab-${name}`)
   })
 
@@ -836,59 +920,61 @@ function escHtml(str) {
 let toastTimer = null
 
 function showToast(msg) {
-  const el = document.getElementById('toast')
+  const el  = document.getElementById('toast')
   el.textContent = msg
   el.hidden = false
   el.style.animation = 'none'
   void el.offsetHeight
   el.style.animation = ''
   clearTimeout(toastTimer)
-  toastTimer = setTimeout(() => { el.hidden = true }, 3100)
+  toastTimer = setTimeout(function() { el.hidden = true }, 3100)
 }
 
 /* ============================================================
-   INIT
+   INIT  (called after auth resolves as authorized)
    ============================================================ */
 
 function init() {
   /* Tab navigation */
-  document.querySelectorAll('.nav-tab').forEach(tab => {
-    tab.addEventListener('click', () => switchTab(tab.dataset.tab))
+  document.querySelectorAll('.nav-tab').forEach(function(tab) {
+    tab.addEventListener('click', function() { switchTab(tab.dataset.tab) })
   })
 
   /* Header quick-add button */
-  document.getElementById('btn-add-quick').addEventListener('click', () => switchTab('add'))
+  document.getElementById('btn-add-quick').addEventListener('click', function() { switchTab('add') })
 
   /* Scanner buttons */
   document.getElementById('btn-scan').addEventListener('click', startScanner)
   document.getElementById('btn-stop-scan').addEventListener('click', stopScanner)
 
   /* ISBN lookup */
-  document.getElementById('btn-isbn-search').addEventListener('click', () => {
+  document.getElementById('btn-isbn-search').addEventListener('click', function() {
     const isbn = document.getElementById('isbn-input').value.trim()
     if (isbn) lookupAndShowForm(isbn)
   })
-  document.getElementById('isbn-input').addEventListener('keydown', e => {
+  document.getElementById('isbn-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('btn-isbn-search').click()
   })
 
   /* Manual entry button */
-  document.getElementById('btn-manual').addEventListener('click', () => populateForm({}, false))
+  document.getElementById('btn-manual').addEventListener('click', function() { populateForm({}, false) })
 
   /* Form cancel */
   document.getElementById('btn-form-cancel').addEventListener('click', resetAddTab)
 
   /* Form submit */
-  document.getElementById('book-form').addEventListener('submit', e => {
+  document.getElementById('book-form').addEventListener('submit', async function(e) {
     e.preventDefault()
     const id = document.getElementById('field-id').value
     const book = {
-      isbn:     document.getElementById('field-isbn').value,
-      title:    document.getElementById('field-title').value.trim(),
-      author:   document.getElementById('field-author').value.trim(),
-      genre:    document.getElementById('field-genre').value,
-      year:     document.getElementById('field-year').value ? parseInt(document.getElementById('field-year').value) : '',
-      coverUrl: document.getElementById('field-cover-url').value
+      isbn:       document.getElementById('field-isbn').value,
+      title:      document.getElementById('field-title').value.trim(),
+      author:     document.getElementById('field-author').value.trim(),
+      genre:      document.getElementById('field-genre').value,
+      year:       document.getElementById('field-year').value ? parseInt(document.getElementById('field-year').value) : '',
+      publisher:  document.getElementById('field-publisher').value.trim(),
+      dimensions: document.getElementById('field-dimensions').value,
+      coverUrl:   document.getElementById('field-cover-url').value
     }
 
     if (!book.title) {
@@ -897,10 +983,10 @@ function init() {
     }
 
     if (id) {
-      DB.updateBook(id, book)
+      await DB.updateBook(id, book)
       showToast('Livre modifié !')
     } else {
-      DB.addBook(book)
+      await DB.addBook(book)
       showToast('Livre ajouté !')
     }
 
@@ -914,9 +1000,9 @@ function init() {
   document.getElementById('sort-by').addEventListener('change', renderShelf)
 
   /* Lend confirm */
-  document.getElementById('btn-confirm-lend').addEventListener('click', () => {
+  document.getElementById('btn-confirm-lend').addEventListener('click', async function() {
     const input = document.getElementById('borrower-input')
-    const days = Math.max(1, parseInt(document.getElementById('reminder-days').value) || 14)
+    const days  = Math.max(1, parseInt(document.getElementById('reminder-days').value) || 14)
 
     let studentName, studentClass, studentId
 
@@ -935,12 +1021,12 @@ function init() {
       studentId    = null
     }
 
-    DB.updateBook(lendingBookId, {
+    await DB.updateBook(lendingBookId, {
       lent: {
         studentId,
         studentName,
         studentClass,
-        lentDate: new Date().toISOString(),
+        lentDate:     new Date().toISOString(),
         reminderDays: days
       }
     })
@@ -952,12 +1038,12 @@ function init() {
   })
 
   /* Autocomplete input events */
-  document.getElementById('borrower-input').addEventListener('input', e => {
+  document.getElementById('borrower-input').addEventListener('input', function(e) {
     renderAutocomplete(e.target.value)
   })
 
-  document.getElementById('borrower-input').addEventListener('keydown', e => {
-    const list = document.getElementById('autocomplete-list')
+  document.getElementById('borrower-input').addEventListener('keydown', function(e) {
+    const list  = document.getElementById('autocomplete-list')
     const items = list.querySelectorAll('.autocomplete-item')
     const matches = list._matches || []
 
@@ -986,7 +1072,7 @@ function init() {
       return
     }
 
-    items.forEach((it, i) => {
+    items.forEach(function(it, i) {
       it.setAttribute('aria-selected', String(i === acSelectedIdx))
     })
   })
@@ -995,39 +1081,39 @@ function init() {
   document.getElementById('btn-new-class').addEventListener('click', openClassModal)
 
   /* Confirm new class */
-  document.getElementById('btn-confirm-class').addEventListener('click', () => {
+  document.getElementById('btn-confirm-class').addEventListener('click', async function() {
     const name = document.getElementById('class-name-input').value.trim()
     if (!name) {
       document.getElementById('class-name-input').focus()
       return
     }
-    DB.addClassName(name)
+    await DB.addClassName(name)
     closeClassModal()
     renderStudents()
     showToast(`Classe "${name}" créée`)
   })
 
-  document.getElementById('class-name-input').addEventListener('keydown', e => {
+  document.getElementById('class-name-input').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('btn-confirm-class').click()
   })
 
   /* Confirm new student */
-  document.getElementById('btn-confirm-student').addEventListener('click', () => {
+  document.getElementById('btn-confirm-student').addEventListener('click', async function() {
     const firstName = document.getElementById('student-firstname').value.trim()
     const lastName  = document.getElementById('student-lastname').value.trim()
     const className = document.getElementById('student-modal-class').value
     if (!firstName || !lastName) {
       if (!firstName) document.getElementById('student-firstname').focus()
-      else document.getElementById('student-lastname').focus()
+      else            document.getElementById('student-lastname').focus()
       return
     }
-    DB.addStudent(firstName, lastName, className)
+    await DB.addStudent(firstName, lastName, className)
     closeStudentModal()
     renderStudents()
     showToast(`${firstName} ${lastName} ajouté(e)`)
   })
 
-  document.getElementById('student-lastname').addEventListener('keydown', e => {
+  document.getElementById('student-lastname').addEventListener('keydown', function(e) {
     if (e.key === 'Enter') document.getElementById('btn-confirm-student').click()
   })
 
@@ -1037,24 +1123,24 @@ function init() {
   document.getElementById('btn-confirm-import').addEventListener('click', doImport)
 
   /* Close modals on overlay click */
-  document.getElementById('book-modal').addEventListener('click', e => {
+  document.getElementById('book-modal').addEventListener('click', function(e) {
     if (e.target === e.currentTarget) closeBookModal()
   })
-  document.getElementById('lend-modal').addEventListener('click', e => {
+  document.getElementById('lend-modal').addEventListener('click', function(e) {
     if (e.target === e.currentTarget) closeLendModal()
   })
-  document.getElementById('class-modal').addEventListener('click', e => {
+  document.getElementById('class-modal').addEventListener('click', function(e) {
     if (e.target === e.currentTarget) closeClassModal()
   })
-  document.getElementById('student-modal').addEventListener('click', e => {
+  document.getElementById('student-modal').addEventListener('click', function(e) {
     if (e.target === e.currentTarget) closeStudentModal()
   })
-  document.getElementById('import-modal').addEventListener('click', e => {
+  document.getElementById('import-modal').addEventListener('click', function(e) {
     if (e.target === e.currentTarget) closeImportModal()
   })
 
   /* Close modals on Escape */
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       closeBookModal()
       closeLendModal()
@@ -1065,12 +1151,12 @@ function init() {
   })
 
   /* Book card keyboard activation */
-  document.addEventListener('keydown', e => {
+  document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && e.target.classList.contains('book-card')) e.target.click()
   })
 
   /* Autocomplete: close when clicking outside */
-  document.addEventListener('click', e => {
+  document.addEventListener('click', function(e) {
     const list = document.getElementById('autocomplete-list')
     const wrap = document.querySelector('.autocomplete-wrap')
     if (wrap && !wrap.contains(e.target)) {
@@ -1085,4 +1171,5 @@ function init() {
   checkReminders()
 }
 
-document.addEventListener('DOMContentLoaded', init)
+// NOTE: init() is called by the onAuthStateChanged handler above, NOT by DOMContentLoaded directly.
+// This ensures the app only starts when a valid user is confirmed.

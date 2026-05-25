@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lettre de rappel — Bibliothèque École</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Playfair+Display:ital,wght@0,600;1,400&display=swap" rel="stylesheet">
+  <style>
+    /* =============================================
+       SCREEN STYLES
+       ============================================= */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #FBF7F4;
+      --surface:  #FFFFFF;
+      --dark:     #2C1810;
+      --mid:      #6B5249;
+      --light:    #9C8478;
+      --border:   #E8DDD8;
+      --accent:   #3B6E8A;
+      --accent-h: #4D82A0;
+      --radius:   12px;
+      --shadow:   0 2px 16px rgba(44,24,16,.08);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .app-header {
+      background: var(--dark);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 20px;
+      gap: 12px;
+    }
+
+    .back-link {
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: rgba(255,255,255,0.45);
+      text-decoration: none;
+      white-space: nowrap;
+      transition: color 0.2s;
+    }
+    .back-link:hover { color: #B8D4E0; }
+
+    .app-header h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #fff;
+      text-align: center;
+      flex: 1;
+    }
+
+    /* Action bar */
+    .action-bar {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      flex-wrap: wrap;
+      padding: 20px 20px 0;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      background: var(--accent);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+      text-decoration: none;
+      box-shadow: 0 4px 14px rgba(59,110,138,0.28);
+    }
+    .btn-primary:hover { background: var(--accent-h); }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 11px 22px;
+      background: transparent;
+      color: var(--mid);
+      border: 1.5px solid var(--border);
+      border-radius: 50px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 0.9rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: border-color 0.2s, color 0.2s;
+      text-decoration: none;
+    }
+    .btn-secondary:hover { border-color: var(--mid); color: var(--dark); }
+
+    /* Letter card */
+    .letter-wrap {
+      max-width: 760px;
+      margin: 24px auto;
+      padding: 0 20px 40px;
+    }
+
+    .letter-paper {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 52px 60px;
+    }
+
+    .letter-header-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 40px;
+      gap: 20px;
+    }
+
+    .letter-school-info {
+      font-size: 0.88rem;
+      line-height: 1.7;
+      color: var(--mid);
+    }
+
+    .letter-school-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--dark);
+      margin-bottom: 2px;
+    }
+
+    .letter-date-place {
+      font-size: 0.88rem;
+      color: var(--mid);
+      text-align: right;
+    }
+
+    .letter-recipient {
+      margin-bottom: 28px;
+      font-size: 0.9rem;
+      line-height: 1.6;
+    }
+
+    .letter-subject {
+      margin-bottom: 28px;
+      font-size: 0.9rem;
+    }
+
+    .letter-subject strong {
+      font-weight: 700;
+    }
+
+    .letter-body {
+      font-size: 0.92rem;
+      line-height: 1.9;
+      color: var(--dark);
+    }
+
+    .letter-body p { margin-bottom: 20px; }
+
+    .book-table {
+      margin: 20px 0 28px;
+      padding: 20px 24px;
+      background: rgba(59,110,138,0.04);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 8px 8px 0;
+    }
+
+    .book-table-row {
+      display: flex;
+      gap: 12px;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+
+    .book-table-label {
+      font-weight: 600;
+      color: var(--mid);
+      min-width: 80px;
+      flex-shrink: 0;
+    }
+
+    .book-table-value {
+      color: var(--dark);
+    }
+
+    .letter-signature {
+      margin-top: 40px;
+      font-size: 0.9rem;
+      line-height: 1.8;
+    }
+
+    .signature-line {
+      display: inline-block;
+      width: 220px;
+      border-bottom: 1px solid var(--dark);
+      margin-top: 32px;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 600px) {
+      .letter-paper { padding: 32px 24px; }
+      .letter-header-row { flex-direction: column; }
+      .letter-date-place { text-align: left; }
+    }
+
+    /* =============================================
+       PRINT STYLES
+       ============================================= */
+    @media print {
+      .app-header,
+      .action-bar { display: none !important; }
+
+      body { background: white; }
+
+      .letter-wrap {
+        margin: 0;
+        padding: 0;
+      }
+
+      .letter-paper {
+        box-shadow: none;
+        border-radius: 0;
+        padding: 2cm 2.5cm;
+        min-height: 29.7cm;
+        width: 21cm;
+        margin: 0;
+      }
+
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="app-header no-print">
+    <a href="index.html" class="back-link">← Bibliothèque</a>
+    <h1>Lettre de rappel</h1>
+    <div style="width:34px;"></div>
+  </header>
+
+  <div class="action-bar no-print">
+    <button class="btn-primary" onclick="window.print()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      Imprimer
+    </button>
+    <button class="btn-secondary" id="btn-mailto" onclick="sendByEmail()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+      Envoyer par mail
+    </button>
+  </div>
+
+  <div class="letter-wrap">
+    <div class="letter-paper" id="letter-paper">
+      <!-- Populated by JS -->
+    </div>
+  </div>
+
+  <script>
+    'use strict'
+
+    function escHtml(str) {
+      if (str == null) return ''
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+    }
+
+    function getParam(name) {
+      return decodeURIComponent(new URLSearchParams(window.location.search).get(name) || '')
+    }
+
+    function todayFR() {
+      return new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+    }
+
+    function formatLentDate(iso) {
+      if (!iso) return ''
+      try {
+        return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' })
+      } catch { return iso }
+    }
+
+    // Read URL params
+    const student    = getParam('student')
+    const cls        = getParam('class')
+    const title      = getParam('title')
+    const author     = getParam('author')
+    const publisher  = getParam('publisher')
+    const dimensions = getParam('dimensions')
+    const lentDate   = getParam('lentDate')
+    const days       = getParam('days')
+
+    // Build letter HTML
+    document.getElementById('letter-paper').innerHTML =
+      '<div class="letter-header-row">' +
+        '<div class="letter-school-info">' +
+          '<div class="letter-school-name">Bibliothèque de l\'École</div>' +
+          'SG Créations<br>' +
+          'Service de prêts scolaires' +
+        '</div>' +
+        '<div class="letter-date-place">' +
+          'Le ' + todayFR() +
+        '</div>' +
+      '</div>' +
+
+      '<div class="letter-recipient">' +
+        'À l\'attention de : <strong>' + escHtml(student) + '</strong>' +
+        (cls ? ', <em>' + escHtml(cls) + '</em>' : '') +
+      '</div>' +
+
+      '<div class="letter-subject">' +
+        '<strong>Objet&nbsp;:</strong> Rappel — retour du livre emprunté' +
+      '</div>' +
+
+      '<div class="letter-body">' +
+        '<p>Madame, Monsieur,</p>' +
+
+        '<p>Nous vous rappelons que <strong>' + escHtml(student) + '</strong> a emprunté le livre suivant ' +
+        (days ? 'il y a <strong>' + escHtml(days) + ' jour' + (parseInt(days) > 1 ? 's' : '') + '</strong>' : '') + '&nbsp;:</p>' +
+
+        '<div class="book-table">' +
+          '<div class="book-table-row"><span class="book-table-label">Titre&nbsp;:</span><span class="book-table-value">' + escHtml(title) + '</span></div>' +
+          '<div class="book-table-row"><span class="book-table-label">Auteur&nbsp;:</span><span class="book-table-value">' + escHtml(author) + '</span></div>' +
+          (publisher  ? '<div class="book-table-row"><span class="book-table-label">Éditeur&nbsp;:</span><span class="book-table-value">' + escHtml(publisher) + '</span></div>' : '') +
+          (dimensions ? '<div class="book-table-row"><span class="book-table-label">Format&nbsp;:</span><span class="book-table-value">' + escHtml(dimensions) + '</span></div>' : '') +
+          (lentDate   ? '<div class="book-table-row"><span class="book-table-label">Prêté le&nbsp;:</span><span class="book-table-value">' + escHtml(formatLentDate(lentDate)) + '</span></div>' : '') +
+        '</div>' +
+
+        '<p>Nous vous remercions de bien vouloir le retourner à la bibliothèque dans les meilleurs délais.</p>' +
+
+        '<p>Dans l\'attente de votre retour, veuillez agréer nos cordiales salutations.</p>' +
+      '</div>' +
+
+      '<div class="letter-signature">' +
+        '<div class="signature-line"></div><br>' +
+        'La bibliothécaire' +
+      '</div>'
+
+    /* ---- Send by email ---- */
+    function sendByEmail() {
+      const subj = 'Rappel — retour du livre « ' + title + ' »'
+      const lentFmt = lentDate ? formatLentDate(lentDate) : ''
+
+      let body = 'Madame, Monsieur,\n\n'
+      body += 'Nous vous rappelons que ' + student + ' a emprunté le livre suivant'
+      if (days) body += ' il y a ' + days + ' jour' + (parseInt(days) > 1 ? 's' : '')
+      body += ' :\n\n'
+      body += '  Titre :      ' + title + '\n'
+      body += '  Auteur :     ' + author + '\n'
+      if (publisher)  body += '  Éditeur :    ' + publisher + '\n'
+      if (dimensions) body += '  Format :     ' + dimensions + '\n'
+      if (lentFmt)    body += '  Prêté le :   ' + lentFmt + '\n'
+      body += '\nNous vous remercions de bien vouloir le retourner à la bibliothèque dans les meilleurs délais.\n\n'
+      body += 'Dans l\'attente de votre retour, veuillez agréer nos cordiales salutations.\n\n'
+      body += 'La bibliothécaire'
+
+      window.open('mailto:?subject=' + encodeURIComponent(subj) + '&body=' + encodeURIComponent(body), '_blank')
+    }
+  </script>
+</body>
+</html>
