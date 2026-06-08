@@ -1,0 +1,16 @@
+{
+  "name": "agenda-famille",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Agenda Famille — Cloudflare Pages + Functions + D1 + connexion Google",
+  "scripts": {
+    "dev": "wrangler pages dev",
+    "deploy": "wrangler pages deploy",
+    "db:create": "wrangler d1 create agenda",
+    "db:init": "wrangler d1 execute agenda --remote --file=./schema.sql",
+    "db:init:local": "wrangler d1 execute agenda --local --file=./schema.sql"
+  },
+  "devDependencies": {
+    "wrangler": "^3.84.0"
+  }
+}
