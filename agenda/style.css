@@ -259,6 +259,48 @@ input, select, textarea { font-family: inherit; font-size: 0.92rem; }
 .legend-item { display: flex; align-items: center; gap: 6px; font-size: .8rem; color: var(--ink-soft); }
 .legend-dot { width: 12px; height: 12px; border-radius: 4px; flex-shrink: 0; }
 
+/* =============================================
+   VUES JOUR / SEMAINE (grille horaire défilante)
+   ============================================= */
+.day-tags { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+
+/* Bandeau "toute la journée" (évènements sans heure) */
+.tg-allday { display: grid; background: var(--panel); border: 1px solid var(--line); border-bottom: none; }
+.tg-allday-day { grid-template-columns: 58px 1fr; border-radius: 16px 16px 0 0; }
+.tg-allday-week { grid-template-columns: 58px repeat(7, minmax(116px, 1fr)); border-radius: 16px 16px 0 0; }
+.tg-ad-lbl { font-size: .66rem; font-weight: 700; text-transform: uppercase; color: var(--ink-mute); padding: 8px 6px; display: flex; align-items: center; justify-content: flex-end; text-align: right; border-right: 1px solid var(--line-soft); }
+.tg-ad-items, .tg-ad-cell { padding: 6px; display: flex; flex-wrap: wrap; gap: 4px; align-content: flex-start; min-height: 34px; cursor: pointer; }
+.tg-ad-cell { border-left: 1px solid var(--line-soft); }
+.tg-ad-chip { font-size: .7rem; font-weight: 600; color: #fff; padding: 2px 8px; border-radius: 14px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.tg-ad-empty { color: var(--line); font-size: .8rem; padding: 4px; }
+
+/* En-tête de semaine (jours) */
+.week-head { display: grid; grid-template-columns: 58px repeat(7, minmax(116px, 1fr)); background: var(--line-soft); border: 1px solid var(--line); border-bottom: none; border-radius: 16px 16px 0 0; }
+.tg-allday-week { border-radius: 0; }
+.wh-gutter { border-right: 1px solid var(--line-soft); }
+.wh-cell { padding: 7px 4px 8px; text-align: center; border-left: 1px solid var(--line-soft); position: relative; }
+.wh-day { font-size: .68rem; font-weight: 700; text-transform: uppercase; color: var(--ink-mute); }
+.wh-num { font-size: 1.15rem; font-weight: 700; color: var(--ink); margin-top: 2px; }
+.wh-cell.today .wh-num { background: var(--rose-dk); color: #fff; width: 30px; height: 30px; line-height: 30px; border-radius: 50%; display: inline-block; margin-top: 1px; }
+.wh-dot { position: absolute; bottom: 5px; left: 50%; transform: translateX(-50%); width: 16px; height: 4px; border-radius: 3px; }
+
+/* Conteneur défilant de la grille horaire */
+.tg-scroll { max-height: 560px; overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 0 0 16px 16px; }
+.tg-body { display: grid; }
+.tg-body-day { grid-template-columns: 58px 1fr; }
+.tg-body-week { grid-template-columns: 58px repeat(7, minmax(116px, 1fr)); }
+.tg-gutter { }
+.tg-hr { font-size: .66rem; color: var(--ink-mute); text-align: right; padding-right: 8px; border-top: 1px solid var(--line-soft); box-sizing: border-box; }
+.tg-col { position: relative; border-left: 1px solid var(--line-soft); cursor: pointer; }
+.tg-evt { position: absolute; border-radius: 7px; color: #fff; font-size: .72rem; font-weight: 600; padding: 3px 6px; overflow: hidden; cursor: pointer; line-height: 1.25; box-shadow: 0 1px 4px rgba(0,0,0,.18); }
+.tg-evt-t { font-size: .62rem; opacity: .85; display: block; font-weight: 500; }
+
+/* Semaine défilante horizontalement sur petit écran */
+.weekview { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* 58px (gouttière) + 7 colonnes de 116px : garantit l'alignement en-tête/corps
+   et déclenche le défilement horizontal quand l'écran est trop étroit */
+.week-inner { min-width: 870px; }
+
 /* Vue Liste */
 .list-day { margin-bottom: 22px; }
 .list-day-head { font-size: .8rem; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--ink-mute); margin-bottom: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
@@ -384,6 +426,11 @@ input, select, textarea { font-family: inherit; font-size: 0.92rem; }
     .evt .evt-time { display: none; }
     .cards { grid-template-columns: 1fr; }
     .field-row { flex-direction: column; gap: 0; }
+
+    /* la barre d'outils du calendrier reste compacte */
+    .cal-toolbar { gap: 8px; }
+    .view-switch button { padding: 6px 10px; font-size: .76rem; }
+    .tg-scroll { max-height: 64vh; }
 }
 
 @media (max-width: 480px) {

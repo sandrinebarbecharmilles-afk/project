@@ -61,9 +61,8 @@
   const now = new Date();
   let state = {
     view: 'agenda',
-    calYear: now.getFullYear(),
-    calMonth: now.getMonth(),
-    calView: 'month',
+    cursor: todayStr(),   // date de référence pour les vues jour / semaine / mois
+    calView: 'month',     // 'day' | 'week' | 'month'
     filterMember: 'all',
   };
 
@@ -280,6 +279,31 @@
     return c;
   }
 
+  function cursorDate() { return new Date(state.cursor + 'T00:00:00'); }
+  function setCursor(d) { state.cursor = iso(d); }
+  function weekStart(d) { const x = new Date(d); const off = (x.getDay() + 6) % 7; x.setDate(x.getDate() - off); x.setHours(0, 0, 0, 0); return x; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+  function shiftCursor(dir) {
+    const d = cursorDate();
+    if (state.calView === 'day') d.setDate(d.getDate() + dir);
+    else if (state.calView === 'week') d.setDate(d.getDate() + dir * 7);
+    else d.setMonth(d.getMonth() + dir);
+    setCursor(d);
+  }
+
+  function calLabel() {
+    const d = cursorDate();
+    if (state.calView === 'day') return cap(fmtDateLong(state.cursor));
+    if (state.calView === 'week') {
+      const s = weekStart(d); const e = new Date(s); e.setDate(s.getDate() + 6);
+      const sameMonth = s.getMonth() === e.getMonth();
+      const left = sameMonth ? s.getDate() : `${s.getDate()} ${MONTHS_FR[s.getMonth()]}`;
+      return cap(`${left} – ${e.getDate()} ${MONTHS_FR[e.getMonth()]} ${e.getFullYear()}`);
+    }
+    return cap(`${MONTHS_FR[d.getMonth()]} ${d.getFullYear()}`);
+  }
+
   function viewAgenda(space) {
     const members = spaceMembers(space.id);
     const filterOpts = `<option value="all">Tout le monde</option>` +
@@ -302,42 +326,39 @@
           <button id="today-btn" class="btn btn-ghost btn-sm">Aujourd'hui</button>
           <button id="next">›</button>
         </div>
-        <div class="cal-month">${MONTHS_FR[state.calMonth]} ${state.calYear}</div>
+        <div class="cal-month">${calLabel()}</div>
         <div class="view-switch">
+          <button data-cv="day" class="${state.calView === 'day' ? 'active' : ''}">Jour</button>
+          <button data-cv="week" class="${state.calView === 'week' ? 'active' : ''}">Semaine</button>
           <button data-cv="month" class="${state.calView === 'month' ? 'active' : ''}">Mois</button>
-          <button data-cv="list" class="${state.calView === 'list' ? 'active' : ''}">Liste</button>
         </div>
       </div>
       <div id="cal-area"></div>
       ${legendHtml(space)}`;
 
     $('#member-filter').addEventListener('change', (e) => { state.filterMember = e.target.value; viewAgenda(space); });
-    $('#add-evt').addEventListener('click', () => openEventModal(space, null, todayStr()));
-    $('#prev').addEventListener('click', () => { shiftMonth(-1); viewAgenda(space); });
-    $('#next').addEventListener('click', () => { shiftMonth(1); viewAgenda(space); });
-    $('#today-btn').addEventListener('click', () => { state.calYear = now.getFullYear(); state.calMonth = now.getMonth(); viewAgenda(space); });
+    $('#add-evt').addEventListener('click', () => openEventModal(space, null, state.cursor));
+    $('#prev').addEventListener('click', () => { shiftCursor(-1); viewAgenda(space); });
+    $('#next').addEventListener('click', () => { shiftCursor(1); viewAgenda(space); });
+    $('#today-btn').addEventListener('click', () => { state.cursor = todayStr(); viewAgenda(space); });
     $$('[data-cv]').forEach((b) => b.addEventListener('click', () => { state.calView = b.dataset.cv; viewAgenda(space); }));
 
-    if (state.calView === 'month') renderMonthGrid(space); else renderListView(space);
-  }
-
-  function shiftMonth(d) {
-    let m = state.calMonth + d;
-    if (m < 0) { m = 11; state.calYear--; }
-    if (m > 11) { m = 0; state.calYear++; }
-    state.calMonth = m;
+    if (state.calView === 'day') renderDayView(space);
+    else if (state.calView === 'week') renderWeekView(space);
+    else renderMonthGrid(space);
   }
 
   function renderMonthGrid(space) {
-    const first = new Date(state.calYear, state.calMonth, 1);
+    const cur = cursorDate(); const curYear = cur.getFullYear(), curMonth = cur.getMonth();
+    const first = new Date(curYear, curMonth, 1);
     let offset = (first.getDay() + 6) % 7; // lundi = 0
-    const start = new Date(state.calYear, state.calMonth, 1 - offset);
+    const start = new Date(curYear, curMonth, 1 - offset);
 
     let cells = '';
     for (let i = 0; i < 42; i++) {
       const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
       const ds = iso(d);
-      const otherMonth = d.getMonth() !== state.calMonth;
+      const otherMonth = d.getMonth() !== curMonth;
       const isToday = ds === todayStr();
       const evts = eventsOn(space.id, ds);
       const hols = holidaysOn(space.id, ds);
@@ -377,38 +398,129 @@
     }));
   }
 
-  function renderListView(space) {
-    let evts = spaceEvents(space.id).slice();
-    if (state.filterMember !== 'all') evts = evts.filter((e) => e.memberId === state.filterMember || e.memberId === 'all');
-    evts = evts.filter((e) => e.date >= todayStr()).sort((a, b) => (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')));
+  // ---------- Grille horaire partagée (jour / semaine) ----------
+  const TG_START = 7, TG_END = 22, TG_ROW = 52; // heures affichées et hauteur d'une heure (px)
+  function minutesOf(t) { if (!t) return null; const p = t.split(':'); return (+p[0]) * 60 + (+(p[1] || 0)); }
+  function splitEvents(evts) { const timed = [], allday = []; evts.forEach((e) => (e.time ? timed : allday).push(e)); return { timed, allday }; }
+  function evColor(e) { return e.memberId === 'all' ? '#9C8478' : memberColor(e.memberId); }
 
-    if (!evts.length) {
-      $('#cal-area').innerHTML = `<div class="empty"><span class="emoji">🗓️</span><p>Aucun évènement à venir.</p><button class="btn btn-primary" id="empty-add">+ Ajouter un évènement</button></div>`;
-      $('#empty-add').addEventListener('click', () => openEventModal(space, null, todayStr()));
-      return;
-    }
-    const byDay = {};
-    evts.forEach((e) => { (byDay[e.date] = byDay[e.date] || []).push(e); });
-    let html = '';
-    Object.keys(byDay).sort().forEach((day) => {
-      html += `<div class="list-day"><div class="list-day-head">${fmtDateLong(day)}</div>`;
-      byDay[day].forEach((e) => {
-        const col = e.memberId === 'all' ? '#9C8478' : memberColor(e.memberId);
-        const mName = e.memberId === 'all' ? 'Toute la famille' : ((memberById(e.memberId) || {}).name || '—');
-        html += `<div class="list-evt" data-evt="${e.id}">
-          <span class="bar" style="background:${col}"></span>
-          <div class="le-main">
-            <div class="le-title">${esc(e.title)}</div>
-            <div class="le-meta">${e.time ? esc(e.time) + ' · ' : ''}${esc(mName)}${e.type ? ' · ' + esc(e.type) : ''}</div>
-          </div>
-        </div>`;
+  // Répartit les évènements horodatés en « couloirs » pour gérer les chevauchements
+  function layoutDay(timed) {
+    const items = timed.map((e) => { const s = minutesOf(e.time); return { e, s, en: s + 60 }; });
+    items.sort((a, b) => a.s - b.s || a.en - b.en);
+    let cluster = [], clusterEnd = -1;
+    const flush = () => {
+      const lanes = [];
+      cluster.forEach((it) => {
+        let placed = false;
+        for (let i = 0; i < lanes.length; i++) { if (lanes[i] <= it.s) { it.lane = i; lanes[i] = it.en; placed = true; break; } }
+        if (!placed) { it.lane = lanes.length; lanes.push(it.en); }
       });
-      html += `</div>`;
+      cluster.forEach((it) => { it.cols = lanes.length; });
+      cluster = [];
+    };
+    items.forEach((it) => {
+      if (cluster.length && it.s >= clusterEnd) flush();
+      cluster.push(it);
+      clusterEnd = cluster.length === 1 ? it.en : Math.max(clusterEnd, it.en);
     });
-    $('#cal-area').innerHTML = html;
-    $$('.list-evt').forEach((row) => row.addEventListener('click', () => {
-      const ev = DB.events.find((x) => x.id === row.dataset.evt);
-      openEventModal(space, ev, ev.date);
+    flush();
+    return items;
+  }
+
+  function tgGutter() {
+    let h = '';
+    for (let x = TG_START; x < TG_END; x++) h += `<div class="tg-hr" style="height:${TG_ROW}px">${String(x).padStart(2, '0')}:00</div>`;
+    return `<div class="tg-gutter">${h}</div>`;
+  }
+
+  function dayColumnHtml(space, ds) {
+    const items = layoutDay(splitEvents(eventsOn(space.id, ds)).timed);
+    const blocks = items.map((it) => {
+      const top = (it.s - TG_START * 60) / 60 * TG_ROW;
+      const height = Math.max(TG_ROW * 0.55, (it.en - it.s) / 60 * TG_ROW - 2);
+      const w = 100 / it.cols, left = it.lane * w;
+      return `<div class="tg-evt" data-evt="${it.e.id}" style="top:${top}px;height:${height}px;left:${left}%;width:calc(${w}% - 3px);background:${evColor(it.e)}">
+        <span class="tg-evt-t">${esc(it.e.time)}</span>${esc(it.e.title)}</div>`;
+    }).join('');
+    const lineStyle = `height:${(TG_END - TG_START) * TG_ROW}px;background-image:linear-gradient(var(--line-soft) 1px,transparent 1px);background-size:100% ${TG_ROW}px;`;
+    return `<div class="tg-col" data-date="${ds}" style="${lineStyle}">${blocks}</div>`;
+  }
+
+  function alldayCellHtml(space, ds) {
+    return splitEvents(eventsOn(space.id, ds)).allday
+      .map((e) => `<span class="tg-ad-chip" data-evt="${e.id}" style="background:${evColor(e)}">${esc(e.title)}</span>`).join('');
+  }
+
+  function wireTimeGrid(space) {
+    $$('.tg-evt, .tg-ad-chip').forEach((el) => el.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      const e = DB.events.find((x) => x.id === el.dataset.evt);
+      if (e) openEventModal(space, e, e.date);
+    }));
+    $$('.tg-col').forEach((col) => col.addEventListener('click', (ev) => {
+      if (ev.target.closest('.tg-evt')) return;
+      const rect = col.getBoundingClientRect();
+      let mins = TG_START * 60 + (ev.clientY - rect.top) / TG_ROW * 60;
+      mins = Math.max(0, Math.round(mins / 30) * 30);
+      const hh = String(Math.floor(mins / 60)).padStart(2, '0'), mm = String(mins % 60).padStart(2, '0');
+      openEventModal(space, null, col.dataset.date, `${hh}:${mm}`);
+    }));
+    const sc = $('.tg-scroll');
+    if (sc) sc.scrollTop = (8 - TG_START) * TG_ROW; // ouvre vers 8h
+  }
+
+  function renderDayView(space) {
+    const ds = state.cursor;
+    const isToday = ds === todayStr();
+    const hols = holidaysOn(space.id, ds), cust = custodyOn(space.id, ds);
+    const ad = alldayCellHtml(space, ds);
+    const tags = hols.map((h) => `<span class="pill" style="background:${h.color}">🏖️ ${esc(h.name)}</span>`).join(' ') +
+      cust.map((c) => `<span class="pill" style="background:${memberColor(c.memberId)}">🔄 ${esc((memberById(c.memberId) || {}).name || '')}</span>`).join(' ');
+
+    $('#cal-area').innerHTML = `
+      <div class="dayview ${isToday ? 'is-today' : ''}">
+        ${tags ? `<div class="day-tags">${tags}</div>` : ''}
+        <div class="tg-allday tg-allday-day">
+          <span class="tg-ad-lbl">Journée</span>
+          <div class="tg-ad-items">${ad || '<span class="tg-ad-empty">—</span>'}</div>
+        </div>
+        <div class="tg-scroll"><div class="tg-body tg-body-day">${tgGutter()}${dayColumnHtml(space, ds)}</div></div>
+      </div>`;
+    wireTimeGrid(space);
+  }
+
+  function renderWeekView(space) {
+    const s = weekStart(cursorDate());
+    const dates = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(s); d.setDate(s.getDate() + i); dates.push(iso(d)); }
+
+    const heads = dates.map((ds) => {
+      const d = new Date(ds + 'T00:00:00');
+      const isToday = ds === todayStr();
+      const hols = holidaysOn(space.id, ds), cust = custodyOn(space.id, ds);
+      const bg = hols.length ? `background:${hexAlpha(hols[0].color, 0.25)};` : '';
+      const dot = cust.length ? `<span class="wh-dot" style="background:${memberColor(cust[0].memberId)}" title="Garde"></span>` : '';
+      return `<div class="wh-cell ${isToday ? 'today' : ''}" style="${bg}">
+        <div class="wh-day">${WEEKDAYS[(d.getDay() + 6) % 7]}</div>
+        <div class="wh-num">${d.getDate()}</div>${dot}</div>`;
+    }).join('');
+
+    const alldayCells = dates.map((ds) => `<div class="tg-ad-cell" data-date="${ds}">${alldayCellHtml(space, ds)}</div>`).join('');
+    const cols = dates.map((ds) => dayColumnHtml(space, ds)).join('');
+
+    $('#cal-area').innerHTML = `
+      <div class="weekview">
+        <div class="week-inner">
+          <div class="week-head"><div class="wh-gutter"></div>${heads}</div>
+          <div class="tg-allday tg-allday-week"><span class="tg-ad-lbl">Jour.</span>${alldayCells}</div>
+          <div class="tg-scroll"><div class="tg-body tg-body-week">${tgGutter()}${cols}</div></div>
+        </div>
+      </div>`;
+    wireTimeGrid(space);
+    $$('.tg-ad-cell').forEach((cell) => cell.addEventListener('click', (ev) => {
+      if (ev.target.closest('.tg-ad-chip')) return;
+      openEventModal(space, null, cell.dataset.date);
     }));
   }
 
@@ -424,7 +536,7 @@
   }
 
   // ---------- Modale évènement ----------
-  function openEventModal(space, evt, defaultDate) {
+  function openEventModal(space, evt, defaultDate, defaultTime) {
     const members = spaceMembers(space.id);
     const isEdit = !!evt;
     const memberOpts = `<option value="all">Toute la famille</option>` +
@@ -438,7 +550,7 @@
         <div class="field"><label>Titre</label><input name="title" value="${evt ? esc(evt.title) : ''}" placeholder="ex. Rendez-vous dentiste" required></div>
         <div class="field-row">
           <div class="field"><label>Date</label><input name="date" type="date" value="${evt ? evt.date : defaultDate}" required></div>
-          <div class="field"><label>Heure</label><input name="time" type="time" value="${evt && evt.time ? evt.time : ''}"></div>
+          <div class="field"><label>Heure</label><input name="time" type="time" value="${evt && evt.time ? evt.time : (defaultTime || '')}"></div>
         </div>
         <div class="field-row">
           <div class="field"><label>Pour qui ?</label><select name="memberId">${memberOpts}</select></div>
