@@ -791,15 +791,15 @@
   function viewImport(space) {
     csvParsed = null;
     $('#content').innerHTML = `
-      <div class="page-head"><div><h2>Import CSV</h2><p class="sub">Ajoutez plusieurs évènements d'un coup</p></div></div>
+      <div class="page-head"><div><h2>Import CSV / Excel</h2><p class="sub">Ajoutez plusieurs évènements d'un coup</p></div></div>
       <div class="info-box">
-        Le fichier doit contenir une <strong>ligne d'en-tête</strong>. Colonnes reconnues (français ou anglais) :
+        Le fichier (<strong>.csv</strong> ou <strong>.xlsx</strong>) doit être un tableau « une ligne = un évènement », avec une <strong>ligne d'en-tête</strong>. Colonnes reconnues (français ou anglais) :
         <strong>date</strong>, <strong>titre/title</strong>, <strong>heure/time</strong>, <strong>personne/membre</strong>, <strong>type</strong>, <strong>note</strong>.<br>
-        Dates acceptées : <code>2026-09-15</code> ou <code>15/09/2026</code>. Séparateur <code>,</code> ou <code>;</code>.
+        Dates acceptées : <code>2026-09-15</code> ou <code>15/09/2026</code>. Pour Excel, la <strong>première feuille</strong> est utilisée.
         <br><a href="#" id="dl-sample" style="color:var(--rose-dk);font-weight:600">⬇ Télécharger un modèle</a>
       </div>
-      <div class="drop-zone" id="drop"><span class="emoji">📥</span><strong>Cliquez ou glissez votre fichier .csv ici</strong><br><span style="font-size:.82rem">Aperçu avant validation</span></div>
-      <input type="file" id="file" accept=".csv,text/csv" hidden>
+      <div class="drop-zone" id="drop"><span class="emoji">📥</span><strong>Cliquez ou glissez votre fichier .csv ou .xlsx ici</strong><br><span style="font-size:.82rem">Aperçu avant validation</span></div>
+      <input type="file" id="file" accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
       <div id="import-result"></div>`;
 
     const fileInput = $('#file'); const drop = $('#drop');
@@ -836,16 +836,55 @@
   }
 
   function handleFile(file, space) {
+    const name = (file.name || '').toLowerCase();
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) return handleXlsx(file, space);
     const reader = new FileReader();
-    reader.onload = () => { parseAndPreview(reader.result, space); };
+    reader.onload = () => previewFromRows(rowsFromCsv(reader.result), space);
     reader.readAsText(file, 'utf-8');
   }
 
-  function parseAndPreview(text, space) {
-    const lines = text.replace(/\r/g, '').split('\n').filter((l) => l.trim() !== '');
-    if (lines.length < 2) { $('#import-result').innerHTML = '<p class="form-error">Fichier vide ou sans données.</p>'; return; }
+  function rowsFromCsv(text) {
+    const lines = text.replace(/\r/g, '').split('\n');
+    if (!lines.length) return [];
     const delim = detectDelim(lines[0]);
-    const headers = parseCSVLine(lines[0], delim).map((h) => h.toLowerCase());
+    return lines.map((l) => parseCSVLine(l, delim));
+  }
+
+  // Lecteur Excel : SheetJS chargé à la demande depuis le CDN
+  let XLSX_LOADING = null;
+  function loadXLSX() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    if (XLSX_LOADING) return XLSX_LOADING;
+    XLSX_LOADING = new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = () => resolve(window.XLSX);
+      s.onerror = () => reject(new Error('cdn'));
+      document.head.appendChild(s);
+    });
+    return XLSX_LOADING;
+  }
+  function handleXlsx(file, space) {
+    const out = $('#import-result');
+    out.innerHTML = '<p class="le-meta">Lecture du fichier Excel…</p>';
+    loadXLSX().then((XLSX) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        try {
+          const wb = XLSX.read(new Uint8Array(reader.result), { type: 'array', cellDates: true });
+          const ws = wb.Sheets[wb.SheetNames[0]];
+          const raw = XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, dateNF: 'yyyy-mm-dd', defval: '' });
+          previewFromRows(raw.map((r) => r.map((c) => String(c == null ? '' : c))), space);
+        } catch (e) { out.innerHTML = '<p class="form-error">Impossible de lire ce fichier Excel.</p>'; }
+      };
+      reader.readAsArrayBuffer(file);
+    }).catch(() => { out.innerHTML = '<p class="form-error">Impossible de charger le lecteur Excel (vérifiez votre connexion internet).</p>'; });
+  }
+
+  function previewFromRows(allRows, space) {
+    const rows0 = allRows.filter((r) => r.some((c) => String(c).trim() !== ''));
+    if (rows0.length < 2) { $('#import-result').innerHTML = '<p class="form-error">Fichier vide ou sans tableau exploitable (il faut une ligne d\'en-tête + des lignes de données).</p>'; return; }
+    const headers = rows0[0].map((h) => String(h).toLowerCase().trim());
     const idx = (names) => { for (const n of names) { const i = headers.indexOf(n); if (i >= 0) return i; } return -1; };
     const iDate = idx(['date']);
     const iTitle = idx(['titre', 'title', 'évènement', 'evenement', 'event']);
@@ -853,30 +892,33 @@
     const iMember = idx(['personne', 'membre', 'member', 'person', 'qui']);
     const iType = idx(['type', 'catégorie', 'categorie', 'category']);
     const iNote = idx(['note', 'notes', 'remarque', 'description']);
+    if (iDate < 0 || iTitle < 0) {
+      $('#import-result').innerHTML = '<p class="form-error">Colonnes <strong>date</strong> et <strong>titre</strong> introuvables dans la 1<sup>re</sup> ligne. Le fichier doit être un tableau « une ligne = un évènement » (pas un calendrier en grille).</p>';
+      return;
+    }
 
     const members = spaceMembers(space.id);
     const matchMember = (name) => {
       if (!name) return 'all';
-      const n = name.trim().toLowerCase();
+      const n = String(name).trim().toLowerCase();
       if (['toute la famille', 'famille', 'tous', 'all'].includes(n)) return 'all';
       const m = members.find((x) => x.name.toLowerCase() === n);
       return m ? m.id : 'all';
     };
 
     const rows = []; const errors = [];
-    for (let i = 1; i < lines.length; i++) {
-      const cols = parseCSVLine(lines[i], delim);
-      const date = normDate(iDate >= 0 ? cols[iDate] : '');
-      const title = iTitle >= 0 ? cols[iTitle] : '';
+    for (let i = 1; i < rows0.length; i++) {
+      const cols = rows0[i];
+      const date = normDate(cols[iDate]);
+      const title = String(cols[iTitle] || '').trim();
       if (!date || !title) { errors.push(`Ligne ${i + 1} ignorée (date ou titre manquant).`); continue; }
       const memberName = iMember >= 0 ? cols[iMember] : '';
-      const memberId = matchMember(memberName);
       rows.push({
         id: uid(), spaceId: space.id, date, title,
-        time: iTime >= 0 ? cols[iTime] : '',
-        memberId, _memberName: memberName,
-        type: iType >= 0 ? cols[iType] : '',
-        note: iNote >= 0 ? cols[iNote] : '',
+        time: iTime >= 0 ? String(cols[iTime] || '').trim() : '',
+        memberId: matchMember(memberName), _memberName: memberName,
+        type: iType >= 0 ? String(cols[iType] || '').trim() : '',
+        note: iNote >= 0 ? String(cols[iNote] || '').trim() : '',
       });
     }
     csvParsed = rows;
@@ -885,7 +927,7 @@
 
     const preview = rows.slice(0, 50).map((r) => {
       const m = r.memberId === 'all' ? 'Toute la famille' : (memberById(r.memberId) || {}).name;
-      const warn = (r._memberName && r.memberId === 'all' && !['toute la famille', 'famille', 'tous', 'all', ''].includes(r._memberName.toLowerCase())) ? ` <span style="color:#b5483f" title="Nom non reconnu, assigné à toute la famille">⚠</span>` : '';
+      const warn = (r._memberName && r.memberId === 'all' && !['toute la famille', 'famille', 'tous', 'all', ''].includes(String(r._memberName).toLowerCase())) ? ` <span style="color:#b5483f" title="Nom non reconnu, assigné à toute la famille">⚠</span>` : '';
       return `<tr><td>${esc(r.date)}</td><td>${esc(r.title)}</td><td>${esc(r.time)}</td><td>${esc(m)}${warn}</td><td>${esc(r.type)}</td></tr>`;
     }).join('');
 
