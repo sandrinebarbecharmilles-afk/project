@@ -91,6 +91,7 @@
       <div class="auth">
         <div class="auth-glow g1"></div><div class="auth-glow g2"></div>
         <div class="auth-card">
+          <img class="auth-logo" src="logo.png" alt="Agenda" onerror="this.style.display='none'">
           <p class="auth-brand">SG Créations</p>
           <h1>Agenda <em>Famille</em></h1>
           <p class="auth-sub">Connectez-vous avec votre compte Google</p>
@@ -202,9 +203,12 @@
       <div class="layout">
         <aside class="sidebar">
           <div class="sidebar-head">
-            <div>
-              <p class="sidebar-brand">SG Créations</p>
-              <p class="sidebar-title">Agenda <em>Famille</em></p>
+            <div class="head-brand">
+              <img class="brand-logo" src="logo.png" alt="" onerror="this.style.display='none'">
+              <div>
+                <p class="sidebar-brand">SG Créations</p>
+                <p class="sidebar-title">Agenda <em>Famille</em></p>
+              </div>
             </div>
             <div class="space-switch">
               <select id="space-select">${spaceOpts}</select>
